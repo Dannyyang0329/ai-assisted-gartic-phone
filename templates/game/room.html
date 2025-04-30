@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Gartic Clone: {{ room_name }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* 使用更現代的字體 */
+            margin: 0; /* 移除預設邊距 */
+            padding: 20px; /* 增加頁面內邊距 */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px; /* 增加側邊欄和主內容間距 */
+            background-color: #f4f7f6; /* 淺灰色背景 */
+            color: #333; /* 主要文字顏色 */
+        }
+        .container, .sidebar {
+            background-color: #fff; /* 白色背景 */
+            padding: 25px; /* 增加內邊距 */
+            border: none; /* 移除邊框 */
+            border-radius: 8px; /* 圓角 */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* 細微陰影 */
+        }
+        .container {
+            flex-grow: 1; /* 允許主容器擴展 */
+            max-width: 700px; /* 稍微增加寬度 */
+            text-align: center;
+        }
+        .sidebar {
+            width: 250px; /* 稍微增加寬度 */
+            flex-shrink: 0; /* 防止側邊欄縮小 */
+        }
+
+        /* --- Sidebar Styles --- */
+        .sidebar h2, .sidebar h3 {
+            color: #007bff; /* 藍色標題 */
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #player-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+        }
+        #player-list li {
+            padding: 8px 5px; /* 增加列表項間距 */
+            border-bottom: 1px solid #f0f0f0; /* 更淡的分隔線 */
+            display: flex; /* 使用 flex 對齊 */
+            justify-content: space-between; /* 分散對齊 */
+            align-items: center;
+        }
+        #player-list li:last-child {
+            border-bottom: none;
+        }
+        .player-name { /* 可以給玩家名稱加個 class */
+            font-weight: 500;
+        }
+        .player-status {
+            font-style: normal; /* 移除斜體 */
+            color: #888;
+            font-size: 0.85em; /* 稍小字體 */
+            background-color: #e9ecef; /* 淺灰背景 */
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        #chat-log {
+            height: 150px; /* 增加聊天記錄高度 */
+            border: 1px solid #e0e0e0; /* 稍明顯邊框 */
+            overflow-y: auto; /* 改為 auto */
+            margin-bottom: 10px;
+            padding: 10px;
+            text-align: left;
+            background-color: #fdfdfd;
+            border-radius: 4px;
+            line-height: 1.5; /* 增加行高 */
+        }
+         #chat-log div { /* 聊天訊息間距 */
+             margin-bottom: 5px;
+         }
+         #chat-log strong { /* 發言者名稱 */
+             color: #0056b3;
+         }
+        #chat-controls {
+            display: flex;
+            gap: 5px; /* 輸入框和按鈕間距 */
+        }
+        #chat-message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+        #chat-message-submit {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease; /* 過渡效果 */
+        }
+        #chat-message-submit:hover {
+            background-color: #0056b3; /* 滑鼠懸停顏色 */
+        }
+
+        /* --- Main Container Styles --- */
+        #game-status {
+            font-weight: 500; /* 調整字重 */
+            margin-bottom: 20px; /* 增加下方間距 */
+            padding: 12px 15px; /* 調整內邊距 */
+            background-color: #e7f3fe;
+            border-left: 5px solid #2196F3;
+            border-radius: 4px; /* 圓角 */
+            text-align: left; /* 左對齊 */
+            font-size: 1.05em;
+        }
+        /* 遊戲階段區域 */
+        #prompt-input-area, #guess-input-area, #drawing-area, #results-area {
+            margin-top: 25px;
+            padding: 20px;
+            border: 1px solid #e0e0e0; /* 統一邊框 */
+            border-radius: 6px;
+            background-color: #fdfdfd; /* 淺背景 */
+            display: none; /* 預設隱藏 */
+        }
+         #prompt-input-area h3, #guess-input-area h3, #drawing-area h3, #results-area h2 {
+             margin-top: 0;
+             color: #555;
+             margin-bottom: 20px;
+         }
+
+        /* 輸入框和按鈕 */
+        input[type="text"], input[type="color"], input[type="range"] {
+            padding: 10px;
+            margin: 5px 0 15px 0; /* 調整外邊距 */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        input[type="range"] {
+            padding: 0; /* Range input 不需要 padding */
+            vertical-align: middle; /* 垂直對齊 */
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #28a745; /* 綠色按鈕 */
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+        button:hover {
+            background-color: #218838; /* 滑鼠懸停深綠色 */
+            opacity: 1; /* 移除預設 hover 透明度 */
+        }
+        button:disabled { /* 禁用按鈕樣式 */
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        #start-game-button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            margin-top: 10px; /* 調整與狀態的間距 */
+            display: none; /* 初始隱藏 */
+        }
+        #clear-button {
+            background-color: #dc3545; /* 紅色清除按鈕 */
+            margin-right: 10px;
+        }
+        #clear-button:hover {
+            background-color: #c82333;
+        }
+
+        /* 繪圖區域 */
+        #prompt-to-draw, #image-to-guess-container p {
+            margin-bottom: 15px;
+            font-weight: 500;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            display: inline-block; /* 使背景適應內容 */
+        }
+        #drawing-tools {
+             margin-bottom: 20px;
+             display: flex; /* 使用 flex 佈局工具 */
+             align-items: center; /* 垂直居中 */
+             gap: 15px; /* 工具間距 */
+             flex-wrap: wrap; /* 允許換行 */
+             justify-content: center; /* 居中 */
+        }
+         #drawing-tools span { /* 線寬數值 */
+             min-width: 20px;
+             display: inline-block;
+             text-align: right;
+             font-weight: bold;
+         }
+        #canvas-container {
+            border: 2px solid #ccc; /* 淺灰色邊框 */
+            margin: 20px auto;
+            display: block;
+            width: 500px; /* 固定寬高或使用百分比 */
+            height: 300px;
+            position: relative;
+            border-radius: 4px; /* 輕微圓角 */
+            overflow: hidden; /* 隱藏超出部分 */
+        }
+        #drawing-canvas {
+            /* ... 保留原有樣式 ... */
+            cursor: crosshair;
+            background-color: #fff;
+        }
+
+        /* 猜題區域 */
+        #image-to-guess {
+            max-width: 100%;
+            max-height: 250px; /* 稍微增加高度 */
+            border: 1px solid #ccc;
+            display: block;
+            margin: 15px auto; /* 增加上下間距 */
+            border-radius: 4px;
+        }
+
+        /* 結果區域 */
+        #results-area .book {
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: left; /* 結果左對齊 */
+            background-color: #fff; /* 白色背景 */
+        }
+         #results-area .book h4 { /* 故事本標題 */
+             margin-top: 0;
+             margin-bottom: 15px;
+             padding-bottom: 10px;
+             border-bottom: 1px solid #eee;
+             color: #007bff;
+         }
+         #results-area .book-item {
+             margin-bottom: 15px;
+             padding: 10px;
+             border-bottom: 1px dashed #eee; /* 虛線分隔 */
+             background-color: #f9f9f9; /* 輕微背景區分 */
+             border-radius: 4px;
+         }
+         #results-area .book-item:last-child {
+             border-bottom: none;
+         }
+          #results-area .book-item strong { /* 類型標籤 */
+              display: inline-block;
+              min-width: 40px; /* 固定寬度 */
+              margin-right: 5px;
+              color: #555;
+          }
+         #results-area .book-item img {
+             max-width: 250px; /* 稍微放大結果圖片 */
+             display: block;
+             margin-top: 8px;
+             border: 1px solid #ddd;
+             border-radius: 4px;
+         }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- 側邊欄：玩家列表和聊天 -->
+    <div class="sidebar">
+        <h2>房間: {{ room_name }}</h2>
+        <div id="player-list">
+            <h3>玩家列表</h3>
+            <ul id="players"></ul> <!-- JS 會填充這裡 -->
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;"> <!-- 替換 hr 樣式 -->
+        <h3>聊天室</h3>
+        <div id="chat-log"></div>
+        <div id="chat-controls">
+            <input id="chat-message-input" type="text" size="25" placeholder="輸入訊息..."> <!-- 添加 placeholder -->
+            <button id="chat-message-submit">發送</button>
+        </div>
+    </div>
+
+    <!-- 主遊戲區域 -->
+    <div class="container">
+        <div id="game-status">等待玩家加入...</div>
+        <button id="start-game-button">開始遊戲</button>
+
+        <!-- 寫題目區域 -->
+        <div id="prompt-input-area" class="hidden">
+            <h3>請輸入一個有趣的題目：</h3>
+            <input id="prompt-input" type="text" size="50" placeholder="例如：一隻貓在彈吉他"> <!-- 添加 placeholder -->
+            <button id="submit-prompt-button">提交題目</button>
+        </div>
+
+        <!-- 畫圖區域 -->
+        <div id="drawing-area" class="hidden">
+            <h3>輪到你畫畫了！</h3>
+            <div id="prompt-to-draw">題目：<span></span></div>
+            <div id="drawing-tools">
+                <button id="clear-button">清除</button>
+                <input type="color" id="color-picker" value="#000000" title="選擇顏色"> <!-- 添加 title -->
+                <label for="line-width">線寬:</label> <!-- 添加 label -->
+                <input type="range" id="line-width" min="1" max="20" value="5">
+                <span id="line-width-value">5</span>
+            </div>
+            <div id="canvas-container">
+                <canvas id="drawing-canvas" width="500" height="300"></canvas>
+            </div>
+            <button id="submit-drawing-button">完成繪畫</button>
+        </div>
+
+        <!-- 猜題區域 -->
+        <div id="guess-input-area" class="hidden">
+            <h3>輪到你猜猜看了！</h3>
+            <div id="image-to-guess-container">
+                <p>這是什麼？</p>
+                <img id="image-to-guess" src="" alt="等待繪畫...">
+            </div>
+            <input id="guess-input" type="text" size="50" placeholder="輸入你的猜測...">
+            <button id="submit-guess-button">提交猜測</button>
+        </div>
+
+        <!-- 結果顯示區域 -->
+        <div id="results-area" class="hidden">
+            <h2>遊戲結束！結果如下：</h2>
+            <div id="books-container"></div>
+            <!-- 可以加一個返回大廳或重新開始的按鈕 -->
+             <button onclick="window.location.href='/'" style="margin-top: 20px; background-color: #6c757d;">返回大廳</button> <!-- 簡單的返回按鈕 -->
+        </div>
+
+    </div>
+
+    <script>
+        const roomName = "{{ room_name }}";
+        const drawingCanvas = document.getElementById('drawing-canvas');
+        const context = drawingCanvas.getContext('2d');
+        const chatLog = document.getElementById('chat-log');
+        const chatMessageInput = document.getElementById('chat-message-input');
+        const chatMessageSubmit = document.getElementById('chat-message-submit');
+        const clearButton = document.getElementById('clear-button');
+        const colorPicker = document.getElementById('color-picker');
+        const lineWidth = document.getElementById('line-width');
+        const lineWidthValue = document.getElementById('line-width-value');
+        
+        // 獲取當前登入用戶信息
+        const currentUser = {
+            isAuthenticated: {% if user.is_authenticated %}true{% else %}false{% endif %},
+            username: "{% if user.is_authenticated %}{{ user.username }}{% else %}guest{% endif %}",
+            displayName: "{% if user.is_authenticated %}{{ user.profile.display_name|default:user.username }}{% else %}訪客{% endif %}"
+        };
+
+        // UI 元素
+        const gameStatus = document.getElementById('game-status');
+        const playerList = document.getElementById('players');
+        const startGameButton = document.getElementById('start-game-button');
+        const promptInputArea = document.getElementById('prompt-input-area');
+        const promptInput = document.getElementById('prompt-input');
+        const submitPromptButton = document.getElementById('submit-prompt-button');
+        const drawingArea = document.getElementById('drawing-area');
+        const promptToDraw = document.getElementById('prompt-to-draw').querySelector('span');
+        const submitDrawingButton = document.getElementById('submit-drawing-button');
+        const guessInputArea = document.getElementById('guess-input-area');
+        const imageToGuess = document.getElementById('image-to-guess');
+        const guessInput = document.getElementById('guess-input');
+        const submitGuessButton = document.getElementById('submit-guess-button');
+        const resultsArea = document.getElementById('results-area');
+        const booksContainer = document.getElementById('books-container');
+        const canvasContainer = document.getElementById('canvas-container'); // 獲取畫布容器
+
+        // 遊戲狀態變數
+        let currentGameState = 'waiting';
+        let myPlayerId = null; // 將由伺服器分配或客戶端生成
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // 初始化畫布
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 5;
+        context.fillStyle = "#FFFFFF"; // 設置背景色為白色
+        context.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height); // 填充背景色
+
+
+        // --- WebSocket 連接 ---
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const gameSocket = new WebSocket(
+            `${wsProtocol}//${window.location.host}/ws/game/${roomName}/`
+        );
+
+        gameSocket.onopen = function(e) {
+            console.log('WebSocket connection established');
+            // 連接後發送用戶信息
+            if (currentUser.isAuthenticated) {
+                sendMessage('user_info', {
+                    username: currentUser.username,
+                    displayName: currentUser.displayName
+                });
+            }
+        };
+        
+        gameSocket.onclose = function(e) {
+            console.error('WebSocket connection closed unexpectedly');
+            gameStatus.textContent = '連線已中斷，請重新整理頁面。';
+            gameStatus.style.backgroundColor = '#f8d7da';
+            gameStatus.style.borderColor = '#f5c6cb';
+        };
+
+        gameSocket.onerror = function(e) {
+            console.error('WebSocket error:', e);
+            gameStatus.textContent = '連線錯誤，請檢查網路或伺服器狀態。';
+             gameStatus.style.backgroundColor = '#f8d7da';
+             gameStatus.style.borderColor = '#f5c6cb';
+        }
+
+        // --- 處理來自伺服器的訊息 ---
+        gameSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const messageType = data.type;
+            const payload = data.payload;
+            console.log("Received message:", messageType, payload);
+
+            switch (messageType) {
+                case 'chat':
+                    appendChatMessage(payload.sender, payload.text);
+                    break;
+                case 'game_state_update':
+                    updateUI(payload);
+                    break;
+                case 'request_prompt':
+                    showPromptInput();
+                    break;
+                case 'request_drawing':
+                    showDrawingArea(payload.prompt_or_guess);
+                    break;
+                case 'request_guess':
+                    showGuessInput(payload.drawing_data);
+                    break;
+                case 'game_over':
+                    showResults(payload);
+                    break;
+                case 'clear_canvas_instruction': // 處理來自其他玩家的清除指令
+                     clearLocalCanvas();
+                     break;
+                case 'error':
+                    alert(`錯誤: ${payload.message}`);
+                    break;
+                // 可以添加其他訊息類型的處理
+                default:
+                    console.warn("Unhandled message type:", messageType);
+            }
+        };
+
+        // --- UI 更新函數 ---
+        function updateUI(stateData) {
+            currentGameState = stateData.state;
+            gameStatus.textContent = `狀態: ${getGameStateText(currentGameState)} (${stateData.status_message || ''})`;
+            updatePlayerList(stateData.players, stateData.waiting_on);
+
+            // 根據遊戲狀態顯示/隱藏區域
+            hideAllSections(); // 先隱藏所有區域
+
+            startGameButton.style.display = (currentGameState === 'waiting' && Object.keys(stateData.players).length >= 2) ? 'inline-block' : 'none';
+
+            // 注意：顯示具體任務區域 (prompt, drawing, guess) 的邏輯在各自的 request_* 處理函數中
+             if (currentGameState === 'finished') {
+                 resultsArea.style.display = 'block';
+                 // 結果的渲染在 showResults 中處理
+             } else if (currentGameState === 'drawing') {
+                 // drawingArea 的顯示由 request_drawing 控制，但這裡確保工具列可見
+                 // drawingTools.style.display = 'block'; // drawingTools 包含在 drawingArea 內
+             }
+             // 其他狀態下，等待伺服器指令顯示對應區域
+        }
+
+        function getGameStateText(state) {
+            switch(state) {
+                case 'waiting': return '等待玩家加入';
+                case 'prompting': return '正在輸入題目';
+                case 'drawing': return '正在繪畫';
+                case 'guessing': return '正在猜測';
+                case 'finished': return '遊戲結束';
+                default: return state;
+            }
+        }
+
+        function updatePlayerList(players, waitingOn = []) {
+            playerList.innerHTML = ''; // 清空列表
+            for (const playerId in players) {
+                const player = players[playerId];
+                const li = document.createElement('li');
+
+                const nameSpan = document.createElement('span'); // 包裹名稱
+                nameSpan.className = 'player-name';
+                nameSpan.textContent = player.name || `玩家 ${playerId.substring(0, 4)}`;
+                li.appendChild(nameSpan);
+
+                 // 顯示玩家狀態（例如：是否已完成當前任務）
+                 let statusText = '';
+                 if (currentGameState === 'prompting' && waitingOn.includes(playerId)) {
+                     statusText = '等待題目'; // 簡化文字
+                 } else if (currentGameState === 'drawing' && waitingOn.includes(playerId)) {
+                     statusText = '正在繪畫';
+                 } else if (currentGameState === 'guessing' && waitingOn.includes(playerId)) {
+                     statusText = '正在猜測';
+                 } else if (currentGameState !== 'waiting' && currentGameState !== 'finished' && !waitingOn.includes(playerId)) {
+                     statusText = '已完成';
+                 }
+
+                 if (statusText) {
+                     const statusSpan = document.createElement('span');
+                     statusSpan.className = 'player-status';
+                     statusSpan.textContent = statusText;
+                     li.appendChild(statusSpan); // 將狀態加到 li 的末尾
+                 }
+
+                playerList.appendChild(li);
+            }
+        }
+
+        function hideAllSections() {
+            promptInputArea.classList.add('hidden');
+            drawingArea.classList.add('hidden');
+            guessInputArea.classList.add('hidden');
+            resultsArea.classList.add('hidden');
+            // canvasContainer.style.display = 'none'; // 畫布容器也隱藏
+        }
+
+        function showPromptInput() {
+            hideAllSections();
+            promptInputArea.classList.remove('hidden');
+            promptInput.focus();
+            // 禁用按鈕，防止重複提交
+            submitPromptButton.disabled = false;
+        }
+
+        function showDrawingArea(promptText) {
+            hideAllSections();
+            drawingArea.classList.remove('hidden');
+            // canvasContainer.style.display = 'block'; // 顯示畫布容器
+            promptToDraw.textContent = promptText;
+            clearLocalCanvas(); // 清空之前的畫
+            // 禁用按鈕，防止重複提交
+            submitDrawingButton.disabled = false;
+        }
+
+        function showGuessInput(drawingDataUrl) {
+            hideAllSections();
+            guessInputArea.classList.remove('hidden');
+            imageToGuess.src = drawingDataUrl;
+            guessInput.value = ''; // 清空輸入框
+            guessInput.focus();
+             // 禁用按鈕，防止重複提交
+            submitGuessButton.disabled = false;
+        }
+
+        function showResults(payload) {
+             hideAllSections();
+             resultsArea.classList.remove('hidden');
+             booksContainer.innerHTML = ''; // 清空之前的結果
+
+             const players = payload.players;
+             // 確保 turn_order 存在且有效，否則使用 books 的 keys 作為備用
+             const turnOrder = Array.isArray(payload.turn_order) && payload.turn_order.length > 0
+                               ? payload.turn_order
+                               : Object.keys(payload.books || {});
+
+             if (turnOrder.length === 0) {
+                 booksContainer.textContent = '沒有找到結果。';
+                 return;
+             }
+
+             turnOrder.forEach(originalPlayerId => {
+                 const book = payload.books[originalPlayerId];
+                 if (!book || book.length === 0) return;
+
+                 const bookDiv = document.createElement('div');
+                 bookDiv.className = 'book';
+
+                 const originalPlayerName = players[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
+                 const title = document.createElement('h4');
+                 title.textContent = `${originalPlayerName} 的故事本`;
+                 bookDiv.appendChild(title);
+
+                 book.forEach(item => {
+                     const itemDiv = document.createElement('div');
+                     itemDiv.className = 'book-item';
+                     const itemPlayerName = players[item.player]?.name || `玩家 ${item.player.substring(0,4)}`;
+
+                     const typeStrong = document.createElement('strong'); // 類型標籤
+                     const contentSpan = document.createElement('span'); // 內容
+
+                     if (item.type === 'prompt') {
+                         typeStrong.textContent = '題目';
+                         contentSpan.textContent = ` (由 ${itemPlayerName}): ${item.data}`;
+                     } else if (item.type === 'drawing') {
+                         typeStrong.textContent = '繪畫';
+                         contentSpan.textContent = ` (由 ${itemPlayerName}):`;
+                         const img = document.createElement('img');
+                         img.src = item.data;
+                         img.alt = "繪畫"; // 添加 alt 屬性
+                         contentSpan.appendChild(document.createElement('br')); // 換行
+                         contentSpan.appendChild(img);
+                     } else if (item.type === 'guess') {
+                         typeStrong.textContent = '猜測';
+                         contentSpan.textContent = ` (由 ${itemPlayerName}): ${item.data}`;
+                     }
+                     itemDiv.appendChild(typeStrong);
+                     itemDiv.appendChild(contentSpan);
+                     bookDiv.appendChild(itemDiv);
+                 });
+                 booksContainer.appendChild(bookDiv);
+             });
+         }
+
+
+        // --- 發送訊息到伺服器 ---
+        function sendMessage(type, payload = {}) {
+            if (gameSocket.readyState === WebSocket.OPEN) {
+                gameSocket.send(JSON.stringify({ type, payload }));
+                console.log("Sent message:", type, payload);
+            } else {
+                console.error("WebSocket is not open. Cannot send message.");
+                // 可以嘗試重新連接或提示用戶
+            }
+        }
+
+        // --- 事件監聽器 ---
+
+        // 開始遊戲
+        startGameButton.onclick = function() {
+            sendMessage('start_game');
+            startGameButton.disabled = true; // 防止重複點擊
+            startGameButton.textContent = '正在啟動...';
+        };
+
+        // 提交題目
+        submitPromptButton.onclick = function() {
+            const promptText = promptInput.value.trim();
+            if (promptText) {
+                sendMessage('submit_prompt', { prompt: promptText });
+                promptInput.value = '';
+                submitPromptButton.disabled = true; // 禁用按鈕
+                gameStatus.textContent = '題目已提交，等待其他玩家...';
+            } else {
+                alert('請輸入題目！');
+            }
+        };
+         promptInput.onkeyup = function(e) {
+             if (e.key === 'Enter') {
+                 submitPromptButton.click();
+             }
+         };
+
+
+        // 提交繪畫
+        submitDrawingButton.onclick = function() {
+            const drawingDataUrl = drawingCanvas.toDataURL(); // 獲取畫布內容
+            sendMessage('submit_drawing', { drawing: drawingDataUrl });
+            submitDrawingButton.disabled = true; // 禁用按鈕
+            gameStatus.textContent = '繪畫已提交，等待其他玩家...';
+        };
+
+        // 提交猜測
+        submitGuessButton.onclick = function() {
+            const guessText = guessInput.value.trim();
+            if (guessText) {
+                sendMessage('submit_guess', { guess: guessText });
+                guessInput.value = '';
+                submitGuessButton.disabled = true; // 禁用按鈕
+                gameStatus.textContent = '猜測已提交，等待其他玩家...';
+            } else {
+                alert('請輸入你的猜測！');
+            }
+        };
+         guessInput.onkeyup = function(e) {
+             if (e.key === 'Enter') {
+                 submitGuessButton.click();
+             }
+         };
+
+        // 聊天訊息
+        chatMessageSubmit.onclick = function(e) {
+            const message = chatMessageInput.value.trim();
+            if (message) {
+                sendMessage('chat_message', { message: message });
+                chatMessageInput.value = '';
+            }
+        };
+        chatMessageInput.onkeyup = function(e) {
+            if (e.key === 'Enter') {
+                chatMessageSubmit.click();
+            }
+        };
+
+        function appendChatMessage(sender, text) {
+            const messageElement = document.createElement('div');
+            // 使用 textContent 防止 XSS
+            const senderStrong = document.createElement('strong');
+            senderStrong.textContent = sender + ': ';
+            messageElement.appendChild(senderStrong);
+            messageElement.appendChild(document.createTextNode(text));
+            chatLog.appendChild(messageElement);
+            chatLog.scrollTop = chatLog.scrollHeight; // 自動滾動到底部
+        }
+
+        // --- 畫布相關 ---
+
+
+        lineWidth.addEventListener('input', function() {
+            lineWidthValue.textContent = this.value;
+            context.lineWidth = this.value;
+        });
+
+        colorPicker.addEventListener('input', function() {
+            context.strokeStyle = this.value;
+        });
+
+        clearButton.addEventListener('click', function() {
+            clearLocalCanvas();
+            // 通知其他玩家清除他們的本地副本（如果需要同步清除的話）
+            // 但在這個遊戲中，清除通常是本地操作，提交時才同步
+            // 如果需要即時同步清除，則發送訊息
+            sendMessage('clear_canvas');
+        });
+
+        function clearLocalCanvas() {
+             // 儲存當前的樣式
+             const currentStrokeStyle = context.strokeStyle;
+             const currentLineWidth = context.lineWidth;
+             const currentLineCap = context.lineCap;
+             const currentLineJoin = context.lineJoin;
+
+             // 清除畫布
+             context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+             // 重新應用白色背景
+             context.fillStyle = "#FFFFFF";
+             context.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+             // 恢復樣式
+             context.strokeStyle = currentStrokeStyle;
+             context.lineWidth = currentLineWidth;
+             context.lineCap = currentLineCap;
+             context.lineJoin = currentLineJoin;
+        }
+
+
+        drawingCanvas.addEventListener('mousedown', function(e) {
+            if (currentGameState !== 'drawing') return; // 只有在繪畫階段才能畫
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+            // 開始繪畫時不需要發送訊息
+        });
+
+        drawingCanvas.addEventListener('mousemove', function(e) {
+            if (!isDrawing || currentGameState !== 'drawing') return;
+
+            const currentX = e.offsetX;
+            const currentY = e.offsetY;
+
+            // 本地繪製
+            context.beginPath();
+            // context.strokeStyle = colorPicker.value; // 顏色已在 context 上設置
+            // context.lineWidth = lineWidth.value; // 線寬已在 context 上設置
+            context.moveTo(lastX, lastY);
+            context.lineTo(currentX, currentY);
+            context.stroke();
+
+            // 注意：Gartic Phone 通常不在繪畫過程中即時同步，只在完成後提交
+            // 如果需要即時同步，可以在這裡發送繪圖數據，但會增加大量網路流量
+            // drawingSocket.send(JSON.stringify({ ... }));
+
+            [lastX, lastY] = [currentX, currentY];
+        });
+
+        ['mouseup', 'mouseout'].forEach(event => {
+            drawingCanvas.addEventListener(event, () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    // 可以在這裡觸發一次繪圖數據的發送（如果需要部分同步）
+                }
+            });
+        });
+
+        // 初始隱藏所有遊戲階段區域
+        hideAllSections();
+        // 初始顯示等待狀態
+        gameStatus.textContent = '正在連接伺服器...';
+
+    </script>
+</body>
+</html>

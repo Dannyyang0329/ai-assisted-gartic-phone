@@ -31,12 +31,15 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne', # <--- 將 daphne 加在最前面
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
+    'game',
 ]
 
 MIDDLEWARE = [
@@ -51,10 +54,20 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'gartic_project.urls'
 
+# 配置Channels
+ASGI_APPLICATION = 'gartic_project.asgi.application'
+
+# 配置Channel layers
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # 添加模板目錄
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -120,3 +133,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 登入登出重定向設置
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'

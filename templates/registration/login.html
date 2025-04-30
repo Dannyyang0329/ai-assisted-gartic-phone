@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>登入 - Gartic Phone</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            padding: 30px;
+        }
+        h1 {
+            color: #2196F3;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .error-message {
+            color: #d32f2f;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #0b7dda;
+        }
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .links a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        .guest-login {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .guest-btn {
+            background-color: #f1f1f1;
+            color: #555;
+            border: 1px solid #ddd;
+        }
+        .guest-btn:hover {
+            background-color: #e1e1e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>歡迎回來！</h1>
+        
+        {% if form.errors %}
+        <div class="error-message">
+            <p>您的用戶名稱或密碼不正確。請重試。</p>
+        </div>
+        {% endif %}
+        
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">用戶名稱：</label>
+                <input type="text" name="username" id="id_username" required>
+            </div>
+            <div class="form-group">
+                <label for="id_password">密碼：</label>
+                <input type="password" name="password" id="id_password" required>
+            </div>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button class="btn" type="submit">登入</button>
+        </form>
+        
+        <div class="links">
+            <a href="{% url 'register' %}">還沒有帳號？立即註冊</a>
+        </div>
+        
+        <div class="guest-login">
+            <p>或者</p>
+            <a href="{% url 'index' %}" class="btn guest-btn">以訪客身份繼續</a>
+        </div>
+    </div>
+</body>
+</html>
