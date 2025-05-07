@@ -1,212 +1,566 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <title>Gartic Phone - 繪圖猜謎遊戲</title>
+    <title>ArtFlow - 創意無限</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <style>
+        :root {
+            --primary: #5D5FEF; /* 新的主色調 - 鮮明紫藍色 */
+            --primary-dark: #4A4CD1;
+            --secondary: #2CCCE4; /* 新的次要色調 - 湛藍色 */
+            --accent: #FF8A65; /* 新的強調色 - 珊瑚橙色 */
+            --dark: #2A2D34;
+            --light: #F8F9FA;
+            --success: #06D6A0;
+            --info: #118AB2;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 24px;
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f7f6;
-            color: #333;
-        }
-        .header {
-            background-color: #2196F3;
-            color: white;
-            padding: 15px 20px;
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+            height: 100vh; /* 確保完整視口高度 */
+            overflow: hidden; /* 防止滾動 */
         }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
+
+        .background-shape {
+            position: absolute;
+            z-index: -1;
         }
-        .user-info {
-            display: flex;
-            align-items: center;
+
+        .shape-1 {
+            top: -15%;
+            right: -10%;
+            width: 40vw;
+            height: 40vw;
+            background-color: var(--secondary);
+            opacity: 0.05;
+            border-radius: 50%;
         }
-        .user-name {
-            margin-right: 10px;
-            font-weight: 500;
+
+        .shape-2 {
+            bottom: -10%;
+            left: -5%;
+            width: 25vw;
+            height: 25vw;
+            background-color: var(--primary);
+            opacity: 0.05;
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
         }
-        .auth-buttons a {
-            color: white;
-            text-decoration: none;
-            margin-left: 15px;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-        .login-btn {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-        .login-btn:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
-        .logout-btn {
-            background-color: rgba(0, 0, 0, 0.1);
-        }
-        .logout-btn:hover {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
+
         .container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 30px;
+            max-width: 1200px;
+            width: 92%;
+            margin: 0 auto;
+            padding: 2rem 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* 確保滿高度 */
+            padding: 0; /* 移除上下內邊距 */
+        }
+
+        /* 導航欄 */
+        .navbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem 0;
+            margin-bottom: 1rem; /* 添加導航欄底部間距 */
+            margin-top: 0.5rem; /* 向下移動導航欄 */
+        }
+
+        .logo {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var (--primary);
+            position: relative;
+        }
+
+        .logo span {
+            color: var(--secondary);
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 2px;
+        }
+
+        /* 主內容區 */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: center;
+            align-items: center;
+            margin-top: -5rem; /* 整體向上移動 */
+        }
+
+        /* 卡片 */
+        .card {
             background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            text-align: center;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: 3rem;
+            width: 100%;
+            max-width: 500px;
+            transition: var(--transition);
+            animation: fadeIn 1s 0.2s both;
+            position: relative;
+            overflow: hidden;
         }
-        .welcome-text {
-            margin-bottom: 30px;
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
         }
-        .welcome-text h2 {
-            color: #2196F3;
-            margin-bottom: 15px;
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
         }
-        .welcome-text p {
-            color: #666;
-            font-size: 18px;
-            line-height: 1.6;
+
+        /* 表單區域 */
+        .form-group {
+            margin-bottom: 1.5rem;
         }
-        .room-form {
-            margin: 30px 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+
+        .form-input {
+            width: 100%;
+            padding: 1.2rem 1.25rem;
+            font-size: 1.1rem;
+            border: 2px solid #EEE;
+            border-radius: var(--radius-sm);
+            background-color: white;
+            transition: var(--transition);
         }
-        input[type="text"] {
-            padding: 12px 15px;
-            width: 70%;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            margin-right: 10px;
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(44, 204, 228, 0.2);
         }
-        button {
-            padding: 12px 25px;
-            background-color: #2196F3;
+
+        .form-input::placeholder {
+            color: #BBB;
+        }
+
+        /* 按鈕 */
+        .btn {
+            display: inline-block;
+            padding: 1rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
             color: white;
+            background-color: var(--primary);
             border: none;
-            border-radius: 4px;
-            font-size: 16px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #0b7dda;
-        }
-        .recent-rooms {
-            margin-top: 40px;
-            text-align: left;
-        }
-        .recent-rooms h3 {
-            color: #555;
-            margin-bottom: 15px;
+            transition: var(--transition);
             text-align: center;
+            text-decoration: none;
         }
+
+        .btn:hover {
+            background-color: var (--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        /* 房間列表 */
+        .room-title {
+            font-weight: 500;
+            color: #888;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
         .room-list {
-            list-style: none;
-            padding: 0;
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
+            gap: 0.75rem;
+            list-style: none;
+            margin-top: 1rem;
         }
-        .room-list li {
-            background-color: #f1f8ff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            border: 1px solid #d1e9ff;
+
+        .room-item {
+            padding: 0.5rem 1.25rem;
+            background-color: #f5f5f5;
+            border-radius: 100px;
+            color: #444;
+            font-size: 0.9rem;
             cursor: pointer;
+            transition: var (--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid transparent;
         }
-        .room-list li:hover {
-            background-color: #e1f0ff;
+
+        .room-item:hover {
+            background-color: white;
+            border-color: var(--secondary);
+            color: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
         }
+
+        .room-item-icon {
+            width: 8px;
+            height: 8px;
+            background-color: var(--secondary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* 頁腳 */
         .footer {
-            margin-top: 50px;
             text-align: center;
-            color: #888;
-            font-size: 14px;
+            padding: 1.5rem 0;
+            color: #999;
+            font-size: 0.8rem;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 1rem 0;
+        }
+
+        /* 動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .container {
+                width: 96%;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .feature-list {
+                flex-direction: column;
+                gap: 0.8rem;
+                align-items: center;
+            }
+        }
+
+        /* 介紹區塊樣式 */
+        .intro-section {
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeIn 1.2s 0.3s both;
+            margin-top: -1rem; /* 再向上移動一點 */
+            width: 100%;
+            max-width: 650px; /* 增加最大寬度 */
+        }
+        
+        .tagline {
+            color: var(--dark);
+            font-size: 1.8rem; /* 增加標題字體大小 */
+            max-width: 650px; /* 增加最大寬度，保持一致 */
+            font-weight: 600; /* 加粗一點讓標題更醒目 */
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+        
+        .tagline span {
+            color: var(--primary);
+            position: relative;
+        }
+        
+        .tagline span::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary) 0%, var (--secondary) 100%);
+            border-radius: 1px;
+            opacity: 0.7;
+        }
+        
+        .app-description {
+            color: #666;
+            font-size: 1.1rem; /* 增加描述文字字體大小 */
+            max-width: 600px; /* 增加最大寬度 */
+            margin: 0 auto 0.8rem; /* 微調下邊距 */
+            line-height: 1.6; /* 增加行高提升可讀性 */
+        }
+        
+        .feature-list {
+            display: flex;
+            justify-content: center;
+            gap: 1.8rem; /* 增加圖標之間的間距 */
+            margin-top: 1.5rem; /* 增加與上方文字的間距 */
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            color: #555;
+            font-size: 1.05rem; /* 增加功能項文字大小 */
+        }
+        
+        .feature-icon {
+            width: 28px; /* 增加圖標尺寸 */
+            height: 28px; /* 增加圖標尺寸 */
+            margin-right: 10px; /* 增加圖標與文字間距 */
+            color: var(--secondary);
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Gartic Phone</h1>
-        <div class="user-info">
-            {% if user.is_authenticated %}
-                <span class="user-name">你好，{{ user.profile.display_name|default:user.username }}</span>
-                <div class="auth-buttons">
-                    <a href="{% url 'logout' %}" class="logout-btn">登出</a>
-                </div>
-            {% else %}
-                <div class="auth-buttons">
-                    <a href="{% url 'login' %}" class="login-btn">登入</a>
-                    <a href="{% url 'register' %}" class="login-btn">註冊</a>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
+    <!-- 背景裝飾 -->
+    <div class="background-shape shape-1"></div>
+    <div class="background-shape shape-2"></div>
+    
     <div class="container">
-        <div class="welcome-text">
-            <h2>歡迎來到 Gartic Phone</h2>
-            <p>這是一個充滿創意和歡樂的繪圖接力遊戲！描述一個詞語，畫出你的想像，然後猜測他人的創作。</p>
-        </div>
-
-        <div class="room-form">
-            <p>請輸入房間名稱以進入繪圖房間：</p>
-            <input id="room-name-input" type="text" size="30" placeholder="例如: 歡樂派對">
-            <button id="room-name-submit">進入房間</button>
-        </div>
-
-        <div class="recent-rooms">
-            <h3>最近活躍的房間</h3>
-            <ul class="room-list" id="recent-rooms-list">
-                <!-- JavaScript 會填充房間列表 -->
-            </ul>
-        </div>
+        <!-- 導航欄 -->
+        <nav class="navbar">
+            <div class="logo">Art<span>Flow</span></div>
+        </nav>
         
-        <div class="footer">
-            <p>© 2023 Gartic Phone - 一個有趣的繪圖接力遊戲</p>
+        <!-- 主內容區 -->
+        <div class="main-content">
+            <!-- 介紹區塊 -->
+            <div class="intro-section">
+                <p class="tagline">讓創意<span>自由流動</span>，共創趣味故事</p>
+                <p class="app-description">ArtFlow 是一款創新的AI輔助繪畫遊戲，結合人類創意與AI技術，透過接力創作打造出令人驚嘆的故事。無論您是繪畫高手還是初學者，AI都能協助您完成精彩作品。</p>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2a8 8 0 100-16 8 8 0 000 16zm-5-7h2a3 3 0 006 0h2a5 5 0 01-10 0z"/>
+                        </svg>
+                        <span>多人協作</span>
+                    </div>
+                    <div class="feature-item">
+                        <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4.929 19.071A9.969 9.969 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10c-2.717 0-5.14-1.076-6.929-2.829L7.5 16.5 5 18l-2.5-2.5 2.429 3.571zM12 18a6 6 0 100-12 6 6 0 000 12zm-1-5v-3h2v3h3v2h-3v3h-2v-3H8v-2h3z"/>
+                        </svg>
+                        <span>繪畫與文字</span>
+                    </div>
+                    <div class="feature-item">
+                        <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14.121 14.121L18 18l-1.415 1.414-3.854-3.854 1.39-1.439zM5.64 17A7.989 7.989 0 0112 4a8 8 0 11-6.36 13z"/>
+                        </svg>
+                        <span>創意探索</span>
+                    </div>
+                    <div class="feature-item">
+                        <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,3C6.5,3 2,6.58 2,11C2,13.13 3.05,15.06 4.75,16.5C4.75,17.1 4.33,18.67 2,21C2,21 5.5,21 8.5,18C9.59,18.31 10.78,18.5 12,18.5C17.5,18.5 22,14.92 22,10.5C22,6.08 17.5,3 12,3M12,17C7.58,17 4,13.87 4,10.06C4,7.58 5.72,5.29 8.5,4.38V5.31C6.73,6.13 5.56,7.92 5.56,10.06C5.56,13 8.5,15.44 12,15.44C13.85,15.44 15.55,14.73 16.7,13.5L15.53,12.35C14.55,13.37 13.25,14 11.78,14C9,14 6.7,12.06 6.7,9.75C6.7,7.86 8.27,6.22 10.4,5.66L11.17,6.5H16L12,3L9,5.5L9.68,6.36C7.27,7.07 5.5,9.07 5.5,11.44C5.5,14.15 8.41,16.38 12,16.38C13.79,16.38 15.38,15.66 16.45,14.53L17.97,15.95C16.58,16.89 14.39,17.5 12,17.5"/>
+                        </svg>
+                        <span>AI輔助參與</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <p class="room-title">輸入或選擇房間加入遊戲</p>
+                <div class="form-group">
+                    <input id="room-name-input" type="text" class="form-input" placeholder="輸入房間名稱..." autofocus>
+                </div>
+                
+                <button id="room-name-submit" class="btn btn-block">
+                    開始創作
+                </button>
+                
+                <ul class="room-list" id="recent-rooms-list">
+                    <!-- JavaScript 會填充房間列表 -->
+                </ul>
+            </div>
         </div>
     </div>
-
+    
+    <!-- 頁腳 -->
+    <footer class="footer">
+        <p>&copy; 2024 ArtFlow</p>
+    </footer>
+    
     <script>
-        // 設置一些範例房間（在實際應用中，這應該從伺服器獲取）
-        const recentRooms = ['歡樂派對', '動物王國', '藝術家聚會', '太空冒險', '海底探險'];
-        const recentRoomsList = document.getElementById('recent-rooms-list');
-        
-        // 填充最近房間列表
-        recentRooms.forEach(room => {
-            const li = document.createElement('li');
-            li.textContent = room;
-            li.onclick = function() {
-                document.getElementById('room-name-input').value = room;
-            };
-            recentRoomsList.appendChild(li);
+        document.addEventListener('DOMContentLoaded', function() {
+            // 設置範例房間
+            const recentRooms = ['創意空間', '夢境畫布', '藝術時光', '色彩實驗', '靈感工坊'];
+            const recentRoomsList = document.getElementById('recent-rooms-list');
+            
+            if (recentRooms.length > 0) {
+                recentRooms.forEach(room => {
+                    const li = document.createElement('li');
+                    li.className = 'room-item';
+                    li.innerHTML = `<span class="room-item-icon"></span>${room}`;
+                    
+                    // 加入動畫效果
+                    li.style.animation = 'fadeInUp 0.5s ease forwards';
+                    li.style.animationDelay = (0.1 * recentRooms.indexOf(room)) + 's';
+                    
+                    li.onclick = function() {
+                        const input = document.getElementById('room-name-input');
+                        input.value = room;
+                        input.focus();
+                        
+                        // 添加視覺反饋
+                        li.style.backgroundColor = 'var(--secondary)';
+                        li.style.color = 'white';
+                        
+                        // 移除自動提交，僅填充輸入框
+                        setTimeout(() => {
+                            li.style.backgroundColor = ''; 
+                            li.style.color = '';
+                        }, 300);
+                    };
+                    recentRoomsList.appendChild(li);
+                });
+            }
+            
+            // 輸入框事件處理
+            document.querySelector('#room-name-input').addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    document.querySelector('#room-name-submit').click();
+                }
+            });
+            
+            // 提交按鈕事件處理
+            document.querySelector('#room-name-submit').addEventListener('click', function() {
+                const roomInput = document.querySelector('#room-name-input');
+                const roomName = roomInput.value.trim();
+                
+                // 驗證房間名稱
+                if (roomName === '') {
+                    showTooltip(roomInput, '請輸入房間名稱');
+                    roomInput.focus();
+                    return;
+                }
+                
+                // 移除僅限英文字母的限制，允許中文
+                if (roomName.length > 20) {
+                    showTooltip(roomInput, '房間名稱不得超過20個字');
+                    roomInput.focus();
+                    return;
+                }
+                
+                // 顯示加載動畫
+                this.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span>';
+                this.disabled = true;
+                
+                // 重定向到房間頁面
+                setTimeout(() => {
+                    window.location.pathname = encodeURIComponent(roomName) + '/';
+                }, 400);
+            });
+            
+            // 工具提示函數
+            function showTooltip(element, message) {
+                // 移除舊的工具提示
+                const oldTooltip = document.querySelector('.tooltip-error');
+                if (oldTooltip) {
+                    oldTooltip.remove();
+                }
+                
+                // 創建新的工具提示
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip-error';
+                tooltip.style.color = '#fff';
+                tooltip.style.backgroundColor = '#e74c3c';
+                tooltip.style.padding = '8px 12px';
+                tooltip.style.borderRadius = '4px';
+                tooltip.style.fontSize = '14px';
+                tooltip.style.position = 'absolute';
+                tooltip.style.zIndex = '100';
+                tooltip.style.animation = 'fadeIn 0.3s';
+                tooltip.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+                tooltip.textContent = message;
+                
+                // 放置工具提示
+                element.parentNode.style.position = 'relative';
+                element.parentNode.appendChild(tooltip);
+                
+                // 計算位置
+                const rect = element.getBoundingClientRect();
+                tooltip.style.top = element.offsetHeight + 8 + 'px';
+                tooltip.style.left = '0';
+                
+                // 3秒後自動消失
+                setTimeout(() => {
+                    tooltip.style.animation = 'fadeOut 0.3s forwards';
+                    setTimeout(() => {
+                        if (tooltip.parentNode) {
+                            tooltip.parentNode.removeChild(tooltip);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+            
+            // 添加旋轉動畫
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
         });
-        
-        document.querySelector('#room-name-input').focus();
-        document.querySelector('#room-name-input').onkeyup = function(e) {
-            if (e.keyCode === 13) {  // enter key
-                document.querySelector('#room-name-submit').click();
-            }
-        };
-
-        document.querySelector('#room-name-submit').onclick = function(e) {
-            var roomName = document.querySelector('#room-name-input').value;
-            if (roomName.trim() === '') {
-                alert('請輸入房間名稱！');
-                return;
-            }
-            window.location.pathname = roomName + '/';
-        };
     </script>
 </body>
 </html>

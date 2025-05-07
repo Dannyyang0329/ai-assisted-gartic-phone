@@ -39,7 +39,8 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         # 添加玩家到房間狀態
         room = game_rooms[self.room_group_name]
-        room['players'][self.player_id] = {'name': f'Player_{len(room["players"]) + 1}', 'connected': True} # 簡單命名
+        # 玩家名稱將由客戶端發送的 user_info 更新，或保持預設
+        room['players'][self.player_id] = {'name': f'訪客_{self.player_id[:4]}', 'connected': True} 
         print(f"Player {self.player_id} connected to {self.room_group_name} ({self.room_name}). Players: {room['players']}")
 
         # 向所有玩家廣播更新後的狀態
@@ -95,7 +96,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             elif message_type == 'clear_canvas': # 處理清除畫布請求
                 await self.handle_clear_canvas()
             elif message_type == 'user_info': # 處理用戶信息
-                await self.handle_user_info(payload)
+                # 即使移除了登入系統，我們仍然可以允許客戶端發送一個顯示名稱
+                player_display_name = payload.get('displayName', room['players'].get(self.player_id, {}).get('name'))
+                if self.player_id in room['players']:
+                    room['players'][self.player_id]['name'] = player_display_name
+                    await self.broadcast_game_state(f"玩家 {player_display_name} 已更新名稱")
             # 可以添加其他訊息類型處理
 
         except json.JSONDecodeError:
@@ -415,10 +420,3 @@ class GameConsumer(AsyncWebsocketConsumer):
             'type': message_type,
             'payload': payload
         }))
-
-    async def handle_user_info(self, payload):
-        room = game_rooms[self.room_group_name]
-        if self.player_id in room['players']:
-            display_name = payload.get('displayName', '未命名玩家')
-            room['players'][self.player_id]['name'] = display_name
-            await self.broadcast_game_state(f"玩家 {display_name} 加入了房間")

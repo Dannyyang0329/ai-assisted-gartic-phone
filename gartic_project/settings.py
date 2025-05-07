@@ -133,7 +133,3 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# 登入登出重定向設置
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
