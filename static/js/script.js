@@ -42,12 +42,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // 提交按鈕事件處理
     document.querySelector('#room-name-submit').addEventListener('click', function() {
         const roomInput = document.querySelector('#room-name-input');
+        const userIdInput = document.querySelector('#user-id-input');
         const roomName = roomInput.value.trim();
+        const userId = userIdInput.value.trim();
         
         // 驗證房間名稱
         if (roomName === '') {
             showTooltip(roomInput, '請輸入房間名稱');
             roomInput.focus();
+            return;
+        }
+        
+        // 驗證用戶ID
+        if (userId === '') {
+            showTooltip(userIdInput, '請輸入您的ID');
+            userIdInput.focus();
             return;
         }
         
@@ -62,9 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
         this.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span>';
         this.disabled = true;
         
-        // 重定向到房間頁面
+        // 重定向到房間頁面，正確構建URL
         setTimeout(() => {
-            window.location.pathname = encodeURIComponent(roomName) + '/';
+            // 將路徑從 /game/waiting_room/ 修改為 / 以匹配Django的URL配置
+            window.location.href = `/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
         }, 400);
     });
     
