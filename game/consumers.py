@@ -8,6 +8,337 @@ import random
 # 簡易的記憶體內儲存來管理房間狀態
 # 注意：這在多個伺服器實例下無法運作，生產環境需要更健壯的方案 (例如 Redis, 資料庫)
 game_rooms = {}
+waiting_rooms = {}
+
+class WaitingRoomConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.room_name = self.scope['url_route']['kwargs'].get('room_name', 'default')
+        room_name_hash = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
+        self.room_group_name = f'waiting_{room_name_hash}'
+        self.player_id = self.channel_name  # 暫時用 channel_name 作為玩家 ID
+
+        # 初始化等待房間狀態 (如果不存在)
+        if self.room_group_name not in waiting_rooms:
+            waiting_rooms[self.room_group_name] = {
+                'original_room_name': self.room_name,  # 保存原始房間名稱以供顯示
+                'players': {},  # {player_id: {'name': 'PlayerName', 'isBot': False, 'isHost': False}}
+                'bot_count': 0,
+                'host_id': self.player_id,  # 第一個加入的玩家為房主
+            }
+
+        # 加入房間群組
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+        # 添加玩家到房間狀態
+        room = waiting_rooms[self.room_group_name]
+        
+        # 判斷是否為房主
+        is_host = room['host_id'] == self.player_id or not room['players']
+        
+        if is_host and not room['players']:
+            room['host_id'] = self.player_id  # 確保有房主
+        
+        # 加入玩家
+        room['players'][self.player_id] = {
+            'id': self.player_id,
+            'name': f'訪客_{self.player_id[:4]}',
+            'isBot': False,
+            'isHost': is_host
+        }
+        
+        print(f"Player {self.player_id} connected to waiting room {self.room_group_name} ({self.room_name})")
+        
+        # 向所有玩家廣播更新後的狀態
+        await self.broadcast_room_state("玩家加入")
+
+    async def disconnect(self, close_code):
+        room = waiting_rooms.get(self.room_group_name)
+        if room:
+            # 從房間移除玩家
+            if self.player_id in room['players']:
+                # 檢查是否為房主
+                was_host = room['players'][self.player_id]['isHost']
+                
+                # 移除玩家
+                del room['players'][self.player_id]
+                print(f"Player {self.player_id} disconnected from waiting room {self.room_group_name}")
+                
+                # 如果房主離開，將房主轉讓給其他人
+                if was_host and room['players']:
+                    # 選擇第一個非機器人玩家作為新房主
+                    for pid, player in room['players'].items():
+                        if not player['isBot']:
+                            room['host_id'] = pid
+                            room['players'][pid]['isHost'] = True
+                            break
+                
+                # 如果房間空了，清理房間狀態
+                if not room['players']:
+                    del waiting_rooms[self.room_group_name]
+                    print(f"Waiting room {self.room_group_name} closed.")
+                else:
+                    # 向剩餘玩家廣播狀態
+                    await self.broadcast_room_state("玩家離開")
+
+        # 離開房間群組
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+            payload = data.get('payload', {})
+            
+            room = waiting_rooms.get(self.room_group_name)
+            if not room:
+                print(f"Error: Waiting room {self.room_group_name} not found.")
+                return
+
+            print(f"Received message type: {message_type} from {self.player_id} in waiting room {self.room_group_name}")
+
+            if message_type == 'chat_message':
+                await self.handle_chat_message(payload.get('message', ''))
+            elif message_type == 'add_bot':
+                await self.handle_add_bot()
+            elif message_type == 'remove_bot':
+                await self.handle_remove_bot()
+            elif message_type == 'start_game':
+                await self.handle_start_game()
+            elif message_type == 'user_info':
+                player_display_name = payload.get('displayName', f'訪客_{self.player_id[:4]}')
+                if self.player_id in room['players']:
+                    room['players'][self.player_id]['name'] = player_display_name
+                    await self.broadcast_room_state(f"玩家 {player_display_name} 已更新名稱")
+
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON: {text_data}")
+        except Exception as e:
+            print(f"Error processing message: {e}")
+            import traceback
+            traceback.print_exc()
+
+    async def handle_chat_message(self, message):
+        if message:
+            room = waiting_rooms[self.room_group_name]
+            player_name = room['players'].get(self.player_id, {}).get('name', '未知玩家')
+            
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'broadcast_message',
+                    'message_type': 'chat',
+                    'payload': {
+                        'sender': player_name,
+                        'text': message
+                    }
+                }
+            )
+
+    async def handle_add_bot(self):
+        room = waiting_rooms[self.room_group_name]
+        
+        # 檢查是否為房主
+        if room['host_id'] != self.player_id:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '只有房主可以添加機器人'}
+            }))
+            return
+            
+        # 檢查房間是否已滿
+        if len(room['players']) >= 8:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '房間已滿'}
+            }))
+            return
+            
+        # 檢查機器人數量是否已達上限
+        if room['bot_count'] >= 3:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '機器人數量已達上限'}
+            }))
+            return
+            
+        # 添加機器人
+        bot_id = f"bot_{room['bot_count'] + 1}"
+        bot_names = ["AI小助手", "畫畫機器人", "創意大師"]
+        
+        room['players'][bot_id] = {
+            'id': bot_id,
+            'name': bot_names[room['bot_count']],
+            'isBot': True,
+            'isHost': False
+        }
+        
+        room['bot_count'] += 1
+        
+        # 向所有玩家廣播更新後的狀態
+        await self.broadcast_room_state("已添加機器人")
+        
+        # 發送通知
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'broadcast_message',
+                'message_type': 'notification',
+                'payload': {
+                    'message': f"已添加機器人玩家：{bot_names[room['bot_count']-1]}",
+                    'level': 'success'
+                }
+            }
+        )
+
+    async def handle_remove_bot(self):
+        room = waiting_rooms[self.room_group_name]
+        
+        # 檢查是否為房主
+        if room['host_id'] != self.player_id:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '只有房主可以移除機器人'}
+            }))
+            return
+            
+        # 檢查是否有機器人可移除
+        if room['bot_count'] <= 0:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '沒有機器人可以移除'}
+            }))
+            return
+            
+        # 移除最後一個機器人
+        bot_to_remove = None
+        for player_id, player in room['players'].items():
+            if player['isBot']:
+                bot_to_remove = player_id
+                break
+                
+        if bot_to_remove:
+            bot_name = room['players'][bot_to_remove]['name']
+            del room['players'][bot_to_remove]
+            room['bot_count'] -= 1
+            
+            # 向所有玩家廣播更新後的狀態
+            await self.broadcast_room_state("已移除機器人")
+            
+            # 發送通知
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'broadcast_message',
+                    'message_type': 'notification',
+                    'payload': {
+                        'message': f"已移除機器人玩家：{bot_name}",
+                        'level': 'info'
+                    }
+                }
+            )
+
+    async def handle_start_game(self):
+        room = waiting_rooms[self.room_group_name]
+        
+        # 檢查是否為房主
+        if room['host_id'] != self.player_id:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '只有房主可以開始遊戲'}
+            }))
+            return
+            
+        # 檢查玩家數量是否足夠
+        if len(room['players']) < 2:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'payload': {'message': '至少需要2名玩家才能開始遊戲'}
+            }))
+            return
+            
+        # 設置遊戲房間的初始狀態
+        hash_key = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
+        game_room_key = f'game_{hash_key}'
+        
+        game_rooms[game_room_key] = {
+            'original_room_name': self.room_name,
+            'players': {},
+            'state': 'waiting',
+            'prompts': {},
+            'books': {},
+            'current_round': 0,
+            'assignments': {},
+            'turn_order': []
+        }
+        
+        # 將等待室的玩家資訊轉移到遊戲房間
+        for player_id, player_data in room['players'].items():
+            game_rooms[game_room_key]['players'][player_id] = {
+                'name': player_data['name'],
+                'connected': True,
+                'isBot': player_data.get('isBot', False)
+            }
+        
+        # 通知所有玩家遊戲開始
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'broadcast_message',
+                'message_type': 'game_started',
+                'payload': {}
+            }
+        )
+        
+        # 移除等待室
+        # del waiting_rooms[self.room_group_name]  # 保留等待室，以便玩家可以回到等待室
+
+    async def broadcast_room_state(self, status_message=""):
+        """向房間內所有玩家廣播當前的房間狀態"""
+        room = waiting_rooms.get(self.room_group_name)
+        if not room:
+            return
+
+        # 準備要廣播的狀態資訊
+        players_list = []
+        for player_id, player_data in room['players'].items():
+            players_list.append({
+                'id': player_id,
+                'name': player_data.get('name', f'玩家_{player_id[:4]}'),
+                'isBot': player_data.get('isBot', False),
+                'isHost': player_data.get('isHost', False)
+            })
+
+        state_payload = {
+            'players': players_list,
+            'bot_count': room['bot_count'],
+            'status_message': status_message,
+        }
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'broadcast_message',
+                'message_type': 'room_update',
+                'payload': state_payload
+            }
+        )
+
+    async def broadcast_message(self, event):
+        """處理來自 group_send 的廣播請求"""
+        message_type = event['message_type']
+        payload = event['payload']
+        
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'payload': payload
+        }))
 
 class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
