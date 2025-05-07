@@ -184,6 +184,13 @@
             displayName: "訪客"
         };
 
+        // 從URL獲取用戶ID (如果有)
+        const urlParams = new URLSearchParams(window.location.search);
+        const userIdFromUrl = urlParams.get('userid');
+        if (userIdFromUrl) {
+            currentUser.username = userIdFromUrl;
+        }
+        
         // UI 元素
         const gameStatus = document.getElementById('game-status');
         const playerList = document.getElementById('players');
@@ -216,7 +223,7 @@
         // --- WebSocket 連接 ---
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const gameSocket = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws/game/${roomName}/`
+            `${wsProtocol}//${window.location.host}/ws/game/${roomName}/?userid=${encodeURIComponent(currentUser.username)}`
         );
 
         gameSocket.onopen = function(e) {

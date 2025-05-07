@@ -16,8 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from game import views as game_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('game.urls')),
+    path('', game_views.index, name='index'),  # 根路徑指向index頁面
+    path('waiting_room/<str:room_name>/', game_views.waiting_room, name='waiting_room'),
+    path('room/<str:room_name>/', game_views.room, name='room'),
+    path('game/check-userid/', game_views.check_userid_availability, name='game_check_userid'),
+    path('game/', include('game.urls')),
 ]

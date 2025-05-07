@@ -3,6 +3,6 @@ from . import views
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('<str:room_name>/', views.waiting_room, name='waiting_room'),
-    path('<str:room_name>/game/', views.room, name='room'),
+    path('check-userid/', views.check_userid_availability, name='check_userid_availability'),
+    # 已移除waiting_room和room路徑，因為已經在主urls.py中定義
 ]

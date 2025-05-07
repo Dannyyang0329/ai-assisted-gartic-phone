@@ -6,14 +6,12 @@ It exposes the ASGI callable as a module-level variable named ``application``.
 For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
-print("--- Loading asgi.py ---") # <--- 加入這行
 
 import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 import game.routing # 確保導入了 game.routing
-print(f"--- game.routing.websocket_urlpatterns: {game.routing.websocket_urlpatterns} ---") # <--- 加入這行
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gartic_project.settings')
 

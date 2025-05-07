@@ -377,3 +377,72 @@ body {
     from { opacity: 1; }
     to { opacity: 0; }
 }
+
+/* 用戶 ID 可用性檢查樣式 */
+.userid-status {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    transition: all 0.3s ease;
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.userid-status.visible {
+    opacity: 1;
+    height: 20px;
+    margin-bottom: 5px;
+}
+
+.userid-status-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 6px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.userid-status.available .userid-status-icon {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.userid-status.unavailable .userid-status-icon {
+    background-color: #F44336;
+    color: white;
+}
+
+.userid-status.checking .userid-status-icon {
+    background-color: #FFC107;
+    animation: pulse 1.5s infinite;
+}
+
+.userid-status.available .userid-status-text {
+    color: #4CAF50;
+}
+
+.userid-status.unavailable .userid-status-text {
+    color: #F44336;
+}
+
+.userid-status.checking .userid-status-text {
+    color: #FFC107;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}

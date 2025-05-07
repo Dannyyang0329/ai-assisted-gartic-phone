@@ -1,9 +1,15 @@
 import json
 import asyncio
 import hashlib
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from collections import defaultdict, deque
 import random
+from asgiref.sync import sync_to_async
+from .views import active_guest_ids  # 導入全局集合
+
+# 添加基本日誌設置
+logger = logging.getLogger(__name__)
 
 # 簡易的記憶體內儲存來管理房間狀態
 # 注意：這在多個伺服器實例下無法運作，生產環境需要更健壯的方案 (例如 Redis, 資料庫)
@@ -16,6 +22,15 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
         room_name_hash = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         self.room_group_name = f'waiting_{room_name_hash}'
         self.player_id = self.channel_name  # 暫時用 channel_name 作為玩家 ID
+        
+        # 從URL或查詢參數中獲取用戶ID (如果有)
+        query_string = self.scope.get('query_string', b'').decode()
+        self.user_id = None
+        if 'userid=' in query_string:
+            import urllib.parse
+            params = dict(urllib.parse.parse_qsl(query_string))
+            self.user_id = params.get('userid')
+            logger.info(f"WaitingRoomConsumer: 從查詢參數獲取用戶ID: {self.user_id}")
 
         # 初始化等待房間狀態 (如果不存在)
         if self.room_group_name not in waiting_rooms:
@@ -56,6 +71,7 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
         await self.broadcast_room_state("玩家加入")
 
     async def disconnect(self, close_code):
+        logger.info(f"WaitingRoomConsumer: WebSocket斷開連接 - player_id: {self.player_id}, user_id: {getattr(self, 'user_id', None)}")
         room = waiting_rooms.get(self.room_group_name)
         if room:
             # 從房間移除玩家
@@ -89,6 +105,13 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        
+        # 使用更健壯的方式檢查用戶ID
+        user_id = getattr(self, 'user_id', None)
+        if user_id:
+            logger.info(f"WaitingRoomConsumer: 正在從活躍集合中移除用戶ID: {user_id}")
+            await self.remove_user_id(user_id)
+            logger.info(f"WaitingRoomConsumer: 用戶ID已移除, 當前活躍IDs: {active_guest_ids}")
 
     async def receive(self, text_data):
         try:
@@ -116,6 +139,13 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
                 if self.player_id in room['players']:
                     room['players'][self.player_id]['name'] = player_display_name
                     await self.broadcast_room_state(f"玩家 {player_display_name} 已更新名稱")
+                # 保存用戶ID
+                self.user_id = payload.get('username')
+                logger.info(f"WaitingRoomConsumer: 設置user_id為: {self.user_id}")
+                
+                # 確保用戶ID加入活躍集合
+                if self.user_id and self.user_id not in active_guest_ids:
+                    await self.add_user_id(self.user_id)
 
         except json.JSONDecodeError:
             print(f"Error decoding JSON: {text_data}")
@@ -340,6 +370,21 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             'payload': payload
         }))
 
+    @sync_to_async
+    def remove_user_id(self, user_id):
+        """從活躍用戶集合中移除用戶ID"""
+        if user_id in active_guest_ids:
+            active_guest_ids.remove(user_id)
+            logger.info(f"WaitingRoomConsumer: 已移除用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+        else:
+            logger.warning(f"WaitingRoomConsumer: 嘗試移除不存在的用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+    
+    @sync_to_async
+    def add_user_id(self, user_id):
+        """添加用戶ID到活躍集合"""
+        active_guest_ids.add(user_id)
+        logger.info(f"WaitingRoomConsumer: 已添加用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+
 class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs'].get('room_name', 'default')
@@ -347,6 +392,15 @@ class GameConsumer(AsyncWebsocketConsumer):
         room_name_hash = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         self.room_group_name = f'game_{room_name_hash}'
         self.player_id = self.channel_name # 暫時用 channel_name 作為玩家 ID
+        
+        # 從URL或查詢參數中獲取用戶ID (如果有)
+        query_string = self.scope.get('query_string', b'').decode()
+        self.user_id = None
+        if 'userid=' in query_string:
+            import urllib.parse
+            params = dict(urllib.parse.parse_qsl(query_string))
+            self.user_id = params.get('userid')
+            logger.info(f"GameConsumer: 從查詢參數獲取用戶ID: {self.user_id}")
 
         # 初始化房間狀態 (如果不存在)
         if self.room_group_name not in game_rooms:
@@ -378,6 +432,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.broadcast_game_state("玩家加入")
 
     async def disconnect(self, close_code):
+        logger.info(f"GameConsumer: WebSocket斷開連接 - player_id: {self.player_id}, user_id: {getattr(self, 'user_id', None)}")
         room = game_rooms.get(self.room_group_name)
         if room:
             # 標記玩家為斷線或直接移除
@@ -400,6 +455,13 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        
+        # 使用更健壯的方式檢查用戶ID
+        user_id = getattr(self, 'user_id', None)
+        if user_id:
+            logger.info(f"GameConsumer: 正在從活躍集合中移除用戶ID: {user_id}")
+            await self.remove_user_id(user_id)
+            logger.info(f"GameConsumer: 用戶ID已移除, 當前活躍IDs: {active_guest_ids}")
 
     async def receive(self, text_data):
         try:
@@ -432,6 +494,13 @@ class GameConsumer(AsyncWebsocketConsumer):
                 if self.player_id in room['players']:
                     room['players'][self.player_id]['name'] = player_display_name
                     await self.broadcast_game_state(f"玩家 {player_display_name} 已更新名稱")
+                # 保存用戶ID
+                self.user_id = payload.get('username')
+                logger.info(f"GameConsumer: 設置user_id為: {self.user_id}")
+                
+                # 確保用戶ID加入活躍集合
+                if self.user_id and self.user_id not in active_guest_ids:
+                    await self.add_user_id(self.user_id)
             # 可以添加其他訊息類型處理
 
         except json.JSONDecodeError:
@@ -751,3 +820,18 @@ class GameConsumer(AsyncWebsocketConsumer):
             'type': message_type,
             'payload': payload
         }))
+
+    @sync_to_async
+    def remove_user_id(self, user_id):
+        """從活躍用戶集合中移除用戶ID"""
+        if user_id in active_guest_ids:
+            active_guest_ids.remove(user_id)
+            logger.info(f"GameConsumer: 已移除用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+        else:
+            logger.warning(f"GameConsumer: 嘗試移除不存在的用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+            
+    @sync_to_async
+    def add_user_id(self, user_id):
+        """添加用戶ID到活躍集合"""
+        active_guest_ids.add(user_id)
+        logger.info(f"GameConsumer: 已添加用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")

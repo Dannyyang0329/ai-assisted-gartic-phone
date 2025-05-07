@@ -39,6 +39,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // 用戶 ID 輸入事件處理
+    const userIdInput = document.querySelector('#user-id-input');
+    const userIdStatus = document.querySelector('#userid-status');
+    const userIdStatusIcon = userIdStatus.querySelector('.userid-status-icon');
+    const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
+    
+    let checkTimeout = null;
+    
+    userIdInput.addEventListener('input', function() {
+        const userId = this.value.trim();
+        
+        // 清除之前的超時
+        if (checkTimeout) {
+            clearTimeout(checkTimeout);
+        }
+        
+        // 重置狀態區域
+        userIdStatus.className = 'userid-status visible checking';
+        userIdStatusIcon.textContent = '?';
+        userIdStatusText.textContent = '檢查中...';
+        
+        // 如果用戶 ID 為空，隱藏狀態
+        if (!userId) {
+            userIdStatus.className = 'userid-status';
+            return;
+        }
+        
+        // 設置延遲以避免頻繁請求
+        checkTimeout = setTimeout(() => {
+            // 修改為正確的URL路徑，確保含有完整路徑
+            fetch(`/game/check-userid/?userid=${encodeURIComponent(userId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.available) {
+                        userIdStatus.className = 'userid-status visible available';
+                        userIdStatusIcon.textContent = '✓';
+                        userIdStatusText.textContent = data.message;
+                    } else {
+                        userIdStatus.className = 'userid-status visible unavailable';
+                        userIdStatusIcon.textContent = '✗';
+                        userIdStatusText.textContent = data.message;
+                    }
+                })
+                .catch(error => {
+                    console.error('檢查用戶 ID 時出錯:', error);
+                    userIdStatus.className = 'userid-status visible unavailable';
+                    userIdStatusIcon.textContent = '!';
+                    userIdStatusText.textContent = '檢查時發生錯誤';
+                });
+        }, 500); // 500ms 延遲，避免頻繁請求
+    });
+    
     // 提交按鈕事件處理
     document.querySelector('#room-name-submit').addEventListener('click', function() {
         const roomInput = document.querySelector('#room-name-input');
@@ -67,14 +119,20 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // 檢查用戶 ID 是否合法
+        if (userIdStatus.classList.contains('unavailable')) {
+            showTooltip(userIdInput, userIdStatusText.textContent);
+            userIdInput.focus();
+            return;
+        }
+        
         // 顯示加載動畫
         this.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span>';
         this.disabled = true;
         
-        // 重定向到房間頁面，正確構建URL
+        // 重定向到房間頁面
         setTimeout(() => {
-            // 將路徑從 /game/waiting_room/ 修改為 / 以匹配Django的URL配置
-            window.location.href = `/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
+            window.location.href = `/waiting_room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
         }, 400);
     });
     
