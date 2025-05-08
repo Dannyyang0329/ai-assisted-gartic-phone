@@ -59,7 +59,7 @@
                     <span>遊戲說明</span>
                 </button>
                 <div class="share-link">
-                    <input type="text" id="room-link" readonly value="{{ request.build_absolute_uri }}" class="form-input">
+                    <input type="text" id="room-link" readonly value="{{ request.build_absolute_uri|urlencode }}" class="form-input">
                     <button id="copy-link" class="btn-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -207,6 +207,10 @@
         const roomLinkInput = document.getElementById('room-link');
         const notification = document.getElementById('notification');
         const notificationText = document.getElementById('notification-text');
+
+        // 設定不包含使用者ID的分享連結
+        const cleanShareUrl = `${window.location.protocol}//${window.location.host}/waiting_room/${roomName}/`;
+        roomLinkInput.value = cleanShareUrl;
 
         // 玩家資料
         let players = [];

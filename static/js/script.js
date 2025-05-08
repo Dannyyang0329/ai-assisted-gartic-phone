@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const recentRooms = ['創意空間', '夢境畫布', '藝術時光', '色彩實驗', '靈感工坊'];
     const recentRoomsList = document.getElementById('recent-rooms-list');
     
-    if (recentRooms.length > 0) {
+    if (recentRoomsList && recentRooms.length > 0) {
         recentRooms.forEach(room => {
             const li = document.createElement('li');
             li.className = 'room-item';
@@ -30,6 +30,71 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             recentRoomsList.appendChild(li);
         });
+    }
+    
+    // 檢查URL參數
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorType = urlParams.get('error');
+    const rejectedUserId = urlParams.get('userid');
+    const redirectRoom = urlParams.get('redirect_room');
+    const roomType = urlParams.get('room_type');
+    
+    // 處理從其他頁面重定向過來的請求
+    if (redirectRoom) {
+        const roomInput = document.getElementById('room-name-input');
+        if (roomInput) {
+            roomInput.value = redirectRoom;
+        }
+        
+        // 顯示提示，指示用戶需要輸入ID
+        const userIdInput = document.querySelector('#user-id-input');
+        if (userIdInput && !rejectedUserId) {
+            // 如果沒有被拒絕的用戶ID，聚焦到用戶ID輸入框
+            userIdInput.focus();
+            userIdInput.classList.add('highlight');
+            
+            // 3秒後移除高亮效果
+            setTimeout(() => {
+                userIdInput.classList.remove('highlight');
+            }, 3000);
+            
+            // 顯示提示信息
+            const userIdStatus = document.querySelector('#userid-status');
+            if (userIdStatus) {
+                const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
+                userIdStatus.className = 'userid-status visible';
+                userIdStatusText.textContent = '請輸入一個用戶ID以繼續';
+            }
+        }
+    }
+    
+    // 處理錯誤消息
+    if (errorType) {
+        const userIdInput = document.querySelector('#user-id-input');
+        const userIdStatus = document.querySelector('#userid-status');
+        const userIdStatusIcon = userIdStatus.querySelector('.userid-status-icon');
+        const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
+        
+        userIdStatus.className = 'userid-status visible unavailable';
+        userIdStatusIcon.textContent = '✗';
+        
+        if (errorType === 'userid_taken' && rejectedUserId) {
+            // 如果有用戶ID被拒絕的錯誤
+            userIdInput.value = rejectedUserId;
+            userIdStatusText.textContent = '此ID已被其他人使用';
+        } else if (errorType === 'invalid_length') {
+            // 如果用戶ID長度不符合要求
+            userIdStatusText.textContent = '用戶ID長度必須在3-20個字符之間';
+        }
+        
+        // 聚焦到用戶ID輸入框
+        userIdInput.focus();
+        userIdInput.classList.add('highlight');
+        
+        // 3秒後移除高亮效果
+        setTimeout(() => {
+            userIdInput.classList.remove('highlight');
+        }, 3000);
     }
     
     // 輸入框事件處理
@@ -97,6 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const userIdInput = document.querySelector('#user-id-input');
         const roomName = roomInput.value.trim();
         const userId = userIdInput.value.trim();
+        const submitButton = this;
         
         // 驗證房間名稱
         if (roomName === '') {
@@ -107,33 +173,62 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 驗證用戶ID
         if (userId === '') {
-            showTooltip(userIdInput, '請輸入您的ID');
+            // 顯示錯誤提示
+            const userIdStatus = document.querySelector('#userid-status');
+            if (userIdStatus) {
+                const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
+                userIdStatus.className = 'userid-status visible unavailable';
+                userIdStatusText.textContent = '請輸入一個用戶ID';
+            }
             userIdInput.focus();
             return;
         }
         
-        // 移除僅限英文字母的限制，允許中文
-        if (roomName.length > 20) {
-            showTooltip(roomInput, '房間名稱不得超過20個字');
-            roomInput.focus();
-            return;
+        // 檢查URL參數中是否有重定向類型
+        const redirectRoomType = document.getElementById('redirect-room-type').value || 'waiting_room';
+        
+        // 構建URL
+        let url;
+        if (redirectRoomType === 'room') {
+            url = `/room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
+        } else {
+            url = `/waiting_room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
         }
         
-        // 檢查用戶 ID 是否合法
-        if (userIdStatus.classList.contains('unavailable')) {
-            showTooltip(userIdInput, userIdStatusText.textContent);
-            userIdInput.focus();
-            return;
-        }
+        // 檢查ID是否可用，然後跳轉
+        submitButton.innerHTML = '檢查中...';
+        submitButton.disabled = true;
         
-        // 顯示加載動畫
-        this.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span>';
-        this.disabled = true;
-        
-        // 重定向到房間頁面
-        setTimeout(() => {
-            window.location.href = `/waiting_room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
-        }, 400);
+        fetch(`/game/check-userid/?userid=${encodeURIComponent(userId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    // ID依然可用，繼續提交
+                    window.location.href = url;
+                } else {
+                    // ID已不可用，顯示錯誤信息
+                    submitButton.innerHTML = '開始創作';
+                    submitButton.disabled = false;
+                    
+                    // 更新用戶ID狀態顯示
+                    const userIdStatus = document.querySelector('#userid-status');
+                    if (userIdStatus) {
+                        const userIdStatusIcon = userIdStatus.querySelector('.userid-status-icon');
+                        const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
+                        userIdStatus.className = 'userid-status visible unavailable';
+                        userIdStatusIcon.textContent = '✗';
+                        userIdStatusText.textContent = '此 ID 已被其他人使用';
+                    }
+                    
+                    // 聚焦到用戶ID輸入框
+                    userIdInput.focus();
+                }
+            })
+            .catch(error => {
+                console.error('檢查用戶 ID 時出錯:', error);
+                submitButton.innerHTML = '開始創作';
+                submitButton.disabled = false;
+            });
     });
     
     // 工具提示函數

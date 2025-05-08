@@ -57,6 +57,13 @@
             </div>
             
             <div class="card">
+                <!-- 添加重定向提示 -->
+                {% if redirect_room %}
+                <div class="redirect-notice">
+                    <p>請先輸入您的用戶ID才能進入房間「{{ redirect_room }}」</p>
+                </div>
+                {% endif %}
+                
                 <p class="room-title">輸入您的ID</p>
                 <div class="form-group">
                     <input id="user-id-input" type="text" class="form-input" placeholder="輸入您的ID...">
@@ -68,7 +75,7 @@
 
                 <p class="room-title">輸入或選擇房間加入遊戲</p>
                 <div class="form-group">
-                    <input id="room-name-input" type="text" class="form-input" placeholder="輸入房間名稱..." autofocus>
+                    <input id="room-name-input" type="text" class="form-input" placeholder="輸入房間名稱..." {% if not redirect_room %}autofocus{% endif %} value="{{ redirect_room }}">
                 </div>
                 
                 <button id="room-name-submit" class="btn btn-block">
@@ -86,6 +93,9 @@
     <footer class="footer">
         <p>&copy; 2024 ArtFlow</p>
     </footer>
+    
+    <!-- 添加一個隱藏欄位保存重定向參數 -->
+    <input type="hidden" id="redirect-room-type" value="{{ room_type }}">
     
     <script src="{% static 'js/script.js' %}"></script>
 </body>

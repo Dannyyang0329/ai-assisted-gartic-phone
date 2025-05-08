@@ -446,3 +446,26 @@ body {
         transform: scale(1);
     }
 }
+
+/* 新增重定向提示樣式 */
+.redirect-notice {
+    background-color: rgba(92, 95, 239, 0.1);
+    border-left: 4px solid var(--primary);
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-sm);
+    animation: fadeIn 0.5s;
+}
+
+.redirect-notice p {
+    margin: 0;
+    color: var(--dark);
+    font-size: 0.95rem;
+}
+
+/* 高亮輸入框效果 */
+.highlight {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(92, 95, 239, 0.2) !important;
+    animation: pulse 2s infinite;
+}
