@@ -231,20 +231,22 @@
 /* 內容區域 - 兩欄布局 */
 .waiting-content {
     margin: 1rem 0; /* 上下邊距 */
-    display: flex;
-    animation: fadeIn 0.8s ease-out;
-    flex: 1;
-    align-items: stretch; /* 確保子元素拉伸到相同高度 */
-    justify-content: center; /* 內容居中 */
-    height: calc(100% - 2rem); /* 確保有足夠的高度 */
+    display: grid;
+    grid-template-columns: minmax(320px, 2fr) minmax(400px, 3fr);
+    gap: 1.5rem;
+    padding: 0 1rem;
+    flex-grow: 1;
+    height: 100%;
+    overflow: hidden;
+    align-items: stretch;
+    box-sizing: border-box;
 }
 
 /* 玩家列表區塊 */
 .player-section {
     display: flex;
     flex-direction: column;
-    margin: 0.5rem 1rem;
-    height: auto; /* 讓高度由內容決定 */
+    overflow: hidden;
     flex: 1; /* 平均分配空間 */
 }
 
@@ -257,6 +259,7 @@
     border: 1px solid #f0f0f0;
     box-shadow: none !important; /* 使用更高優先級確保無陰影 */
     transition: none !重要; /* 移除所有過渡效果，防止陰影出現 */
+    overflow: hidden;
 }
 
 .player-card:hover {
@@ -291,6 +294,7 @@
     flex-grow: 1;
     overflow-y: auto;
     min-height: 0; /* 允許容器收縮 */
+    padding: 0.5rem 0;
 }
 
 .player-list {
@@ -587,7 +591,6 @@
     flex-direction: column;
     overflow: hidden;
     min-width: 480px; /* 保證聊天室有最小寬度 */
-    margin: 0.5rem 1rem;
     flex: 1; /* 平均分配空間 */
     border-radius: var(--radius-sm);
     border: 1px solid #f0f0f0;
@@ -606,19 +609,43 @@
     flex-shrink: 0;
 }
 
+/* 聊天區域 */
 .chat-log {
     flex-grow: 1;
     padding: 0.6rem 1.2rem;
-    overflow-y: auto;
+    overflow-y: auto; /* 啟用垂直滾動 */
     min-height: 0; 
 }
 
+/* 聊天控制區域 */
 .chat-controls {
     display: flex;
     padding: 0.4rem 0.4rem;
     border-top: 1px solid #f1f1f1;
     background-color: #f9f9f9;
     flex-shrink: 0;
+}
+
+.chat-message {
+    margin-bottom: 0.5rem;
+    max-width: 90%;
+}
+
+.chat-sender {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.25rem;
+}
+
+.chat-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    padding: 0.5rem 1rem;
+    background-color: #f5f5f5;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
+    display: inline-block;
+    color: var(--dark);
 }
 
 /* 遊戲說明彈窗 */
@@ -814,17 +841,19 @@
 
     .waiting-container {
         padding: 0.5rem 1rem;
-        height: calc(100vh - 60px);
     }
     
     .waiting-content {
         flex-direction: column; /* 在小屏幕上改為列布局 */
         align-items: stretch;
+        height: auto; /* 在 column 方向時，高度通常由內容決定，或需要特定設定 */
+        gap: 1rem; /* 如果在 column 方向也需要間距 */
     }
     
     .player-section {
         height: auto;
         min-height: 250px; /* 確保在手機版有合理高度 */
+        overflow: visible; /* 在堆疊時，如果內部有 dropdown 等，可能需要調整 */
     }
     
     .chat-card {

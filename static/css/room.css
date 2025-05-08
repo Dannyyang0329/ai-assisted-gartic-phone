@@ -1,5 +1,14 @@
 /* Room 頁面專用樣式 */
 
+/* General body style for consistency */
+body.room-page {
+    background-color: var(--light); /* Use var from style.css */
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
 /* 基礎頁面結構 */
 .room-page {
     background-color: var(--light);
@@ -8,52 +17,77 @@
     min-height: 100vh;
 }
 
-/* 導航條樣式 */
+/* Navbar styles adapted from waiting_room.css */
 .navbar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    margin-bottom: 0;
-    background-color: white;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    z-index: 10;
+    justify-content: space-between;
+    padding: 0.8rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(230, 230, 230, 0.7);
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.03);
+    backdrop-filter: blur(10px);
+    position: sticky; /* Make navbar sticky */
+    top: 0;
+    z-index: 1000;
 }
 
-.room-info {
-    font-size: 1.2rem;
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
     color: var(--dark);
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+}
+
+.logo span {
+    color: var(--primary);
+    margin-left: 1px;
+}
+
+/* 導航條樣式 */
+.room-info {
+    font-size: 0.95rem;
     font-weight: 500;
-    padding: 0.5rem 1rem;
-    background-color: rgba(92, 95, 239, 0.1);
+    color: #666;
+    background: rgba(93, 95, 239, 0.08);
+    padding: 0.4rem 1rem;
     border-radius: 100px;
-    animation: fadeIn 0.5s ease-in;
+    border: 1px solid rgba(93, 95, 239, 0.12);
+    transition: all 0.2s ease;
+}
+
+.room-info:hover {
+    background: rgba(93, 95, 239, 0.12);
+    transform: translateY(-1px);
 }
 
 .nav-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.8rem; /* Consistent with waiting_room */
 }
 
-.btn-secondary {
+.nav-actions .btn-secondary { /* Ensure this targets the button correctly */
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0.6rem 1.2rem;
-    background-color: transparent;
-    border: 1px solid var(--primary);
-    color: var(--primary);
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem; /* Consistent with waiting_room */
+    border-radius: 8px; /* Consistent with waiting_room */
     font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    background: white; /* Consistent with waiting_room */
+    border: 1px solid #eaeaea; /* Consistent with waiting_room */
+    color: #555; /* Consistent with waiting_room */
 }
 
-.btn-secondary:hover {
-    background-color: rgba(92, 95, 239, 0.1);
-    transform: translateY(-2px);
+.nav-actions .btn-secondary:hover {
+    border-color: rgba(93, 95, 239, 0.3); /* Consistent with waiting_room */
+    color: var(--primary); /* Consistent with waiting_room */
+    transform: translateY(-1px);
+    background-color: white; /* Keep background white on hover */
 }
 
 .nav-icon {
@@ -65,55 +99,76 @@
 .game-container {
     display: flex;
     flex-direction: row;
-    gap: 2rem;
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    gap: 1.5rem; /* Reduced gap */
+    padding: 1.5rem; /* Reduced padding */
+    max-width: 1800px; /* Increased max-width for larger screens and drawing area */
+    margin: 1rem auto; /* Add some top/bottom margin */
+    flex-grow: 1; /* Allow container to grow */
 }
 
 /* 側邊欄樣式 */
 .sidebar {
-    width: 300px;
+    width: 320px; /* Slightly wider sidebar */
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem; /* Reduced gap */
 }
 
 .card {
     background-color: white;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md); /* Consistent radius */
+    box-shadow: var(--shadow-sm); /* Softer shadow */
     overflow: hidden;
     position: relative;
     transition: var(--transition);
+    border: 1px solid #f0f0f0; /* Add subtle border */
+    display: flex; /* Added for flex children */
+    flex-direction: column; /* Added for flex children */
 }
 
 .card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    /* Optional: remove or change top border highlight if it clashes */
+    display: none; 
 }
 
 .card:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md); /* Slightly increased hover shadow */
 }
 
-.player-card, .chat-card {
+.player-card, .chat-card { /* .chat-card might not be used here, but keep for consistency if added */
     display: flex;
     flex-direction: column;
+    height: 100%; /* Make card fill sidebar height */
+    padding: 0; /* Remove padding from card itself, handle in children */
 }
 
 .player-card h3, .chat-card h3 {
-    font-size: 1.1rem;
+    font-size: 1.1rem; /* Consistent with waiting_room */
     color: var(--dark);
     margin: 0;
-    padding: 1.2rem 1.5rem;
+    padding: 0.8rem 1.2rem; /* Adjusted padding */
     border-bottom: 1px solid #f1f1f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0; /* Prevent h3 from shrinking */
+}
+
+.player-count {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+    background-color: #f5f5f5;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+}
+
+.player-list-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+    min-height: 0; /* Allow shrinking */
 }
 
 /* 玩家列表 */
@@ -131,9 +186,9 @@
 .player-item {
     display: flex;
     align-items: center;
-    padding: 0.8rem 1.5rem;
+    padding: 0.7rem 1.2rem; /* Adjusted padding */
     border-bottom: 1px solid #f5f5f5;
-    transition: var(--transition);
+    transition: background-color 0.2s ease;
 }
 
 .player-item:last-child {
@@ -141,16 +196,16 @@
 }
 
 .player-item:hover {
-    background-color: rgba(245, 247, 250, 0.8);
+    background-color: #f9f9f9; /* Subtle hover */
 }
 
 .player-status-dot {
-    width: 10px;
-    height: 10px;
+    width: 9px; /* Slightly larger */
+    height: 9px;
     border-radius: 50%;
-    background-color: #ddd;
-    margin-right: 1rem;
+    margin-right: 0.8rem; /* Adjusted margin */
     flex-shrink: 0;
+    background-color: #ddd; /* Default color */
 }
 
 .player-status-dot.waiting {
@@ -166,7 +221,30 @@
     font-weight: 500;
     color: var(--dark);
     flex-grow: 1;
-    font-size: 0.95rem;
+    font-size: 0.95rem; /* Adjusted font size */
+}
+
+/* Player tags (you, bot) */
+.player-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 100px;
+    margin-left: 0.5rem;
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+.you-tag {
+    background-color: var(--primary-light, rgba(93, 95, 239, 0.1)); /* Fallback if var not defined */
+    color: var(--primary);
+    border: 1px solid var(--primary-lighter, rgba(93, 95, 239, 0.2)); /* Fallback */
+}
+
+.bot-tag {
+    background-color: var(--secondary-light, rgba(44, 204, 228, 0.1)); /* Fallback */
+    color: var(--secondary);
+    border: 1px solid var(--secondary-lighter, rgba(44, 204, 228, 0.2)); /* Fallback */
 }
 
 .player-status {
@@ -176,11 +254,13 @@
     border-radius: 100px;
     background-color: #f1f1f1;
     margin-left: auto;
+    white-space: nowrap; /* Prevent status text from wrapping */
 }
 
 .player-status.completed {
-    background-color: rgba(6, 214, 160, 0.2);
+    background-color: rgba(6, 214, 160, 0.15); /* Slightly adjusted */
     color: var(--success);
+    border: 1px solid rgba(6, 214, 160, 0.3);
 }
 
 /* 主遊戲區域 */
@@ -188,20 +268,25 @@
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch; /* Make children stretch */
+    gap: 1.5rem; /* Add gap between status bar and game area */
+    min-width: 0; /* Allow shrinking */
 }
 
 .status-bar {
     width: 100%;
-    padding: 1rem 1.5rem;
-    background-color: white;
+    padding: 0.8rem 1.2rem; /* Adjusted padding */
+    background: linear-gradient(135deg, rgba(93, 95, 239, 0.03) 0%, rgba(44, 204, 228, 0.05) 100%); /* Subtle gradient */
     border-radius: var(--radius-md);
-    margin-bottom: 2rem;
+    /* margin-bottom: 1.5rem; */ /* Replaced by gap in main-content */
     display: flex;
     align-items: center;
-    gap: 1rem;
-    box-shadow: var(--shadow-sm);
+    gap: 0.8rem; /* Adjusted gap */
+    box-shadow: none; /* Remove default shadow, use border */
+    border: 1px solid rgba(93, 95, 239, 0.1);
     font-weight: 500;
+    color: var(--dark-muted, #555); /* Fallback */
+    flex-shrink: 0; /* Prevent status bar from shrinking */
 }
 
 .round-indicator {
@@ -209,11 +294,12 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    background-color: #f5f5f5;
+    background-color: rgba(93, 95, 239, 0.08); /* Match room-info style */
     padding: 0.4rem 0.8rem;
     border-radius: 100px;
-    font-size: 0.9rem;
-    color: var(--dark);
+    font-size: 0.85rem; /* Adjusted font size */
+    color: var(--primary);
+    border: 1px solid rgba(93, 95, 239, 0.12);
 }
 
 .status-icon {
@@ -222,6 +308,7 @@
     border-radius: 50%;
     background-color: #ccc;
     position: relative;
+    flex-shrink: 0;
 }
 
 .status-icon.status-waiting {
@@ -244,39 +331,115 @@
 
 .status-icon.status-connecting {
     background-color: var(--secondary);
-    animation: pulse 2s infinite;
+    animation: pulse 1.5s infinite ease-in-out; /* Smoother pulse */
 }
 
-/* 遊戲階段區域 */
+/* Game Stage Area Styling */
 .game-stage-area {
-    width: 100%;
-    max-width: 800px;
+    background-color: #fff;
+    padding: 2rem; /* Increased padding for more space */
+    border-radius: var(--radius-lg); /* Larger radius for main content cards */
+    box-shadow: var(--shadow-subtle, 0 2px 4px rgba(0,0,0,0.05)); /* Fallback */
+    border: 1px solid #e9ecef; /* Light border */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center content by default */
+    gap: 1.5rem; /* Space out elements within the stage */
+    text-align: center; /* Center text */
+    flex-grow: 1; /* Allow stage area to take available space */
+    min-height: 300px; /* Minimum height for game stages */
 }
 
-.game-card {
-    width: 100%;
-    padding: 0;
-}
-
-.card-header {
-    padding: 1.5rem;
-    background-color: #f9f9f9;
-    border-bottom: 1px solid #f1f1f1;
-}
-
-.card-header h3, .card-header h2 {
-    margin: 0;
+.game-stage-area h2, .game-stage-area h3 {
     color: var(--dark);
+    margin-bottom: 0.5rem;
     font-weight: 600;
-    font-size: 1.2rem;
 }
 
-.card-header h2 {
-    font-size: 1.5rem;
+.game-stage-area p {
+    color: var(--dark-muted, #555);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 500px; /* Limit width of paragraph text */
 }
 
-.card-body {
-    padding: 2rem;
+/* Input fields styling */
+.form-input,
+#prompt-input,
+#guess-input {
+    width: 100%;
+    max-width: 450px; /* Max width for inputs */
+    padding: 0.8rem 1rem; /* Consistent padding */
+    border: 1px solid #ced4da; /* Consistent border */
+    border-radius: var(--radius-sm);
+    font-size: 1rem; /* Consistent font size */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus,
+#prompt-input:focus,
+#guess-input:focus {
+    border-color: var(--primary); /* Use primary for focus */
+    box-shadow: 0 0 0 0.2rem rgba(93, 95, 239, 0.25); /* Use primary for focus shadow */
+    outline: none;
+}
+
+/* Button styling */
+.btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500; /* Adjusted from 600 for slightly softer look */
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    line-height: 1.5; /* Ensure text is vertically centered */
+}
+
+.btn-primary,
+#submit-prompt-button,
+#submit-drawing-button,
+#submit-guess-button {
+    background-color: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover,
+#submit-prompt-button:hover,
+#submit-drawing-button:hover,
+#submit-guess-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(93, 95, 239, 0.2);
+}
+
+.btn-primary:disabled,
+#submit-prompt-button:disabled,
+#submit-drawing-button:disabled,
+#submit-guess-button:disabled {
+    background-color: #adb5bd; /* Consistent disabled style */
+    color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* General secondary button, distinct from nav's */
+/* This .btn-secondary is for general use, nav one is more specific */
+.btn-secondary { 
+    background-color: #f8f9fa;
+    color: var(--dark);
+    border: 1px solid #ced4da;
+}
+
+.btn-secondary:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
 }
 
 /* 提示和題目顯示 */
@@ -396,6 +559,82 @@
     cursor: crosshair;
 }
 
+/* Drawing Area Specifics */
+#drawing-canvas-container {
+    border: 1px solid #dee2e6;
+    border-radius: var(--radius-sm);
+    overflow: hidden; /* Clip canvas if it overflows */
+    box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05)); /* Fallback */
+    width: 100%; /* Make it responsive */
+    max-width: 550px; /* Slightly smaller max-width */
+    aspect-ratio: 4 / 3; /* Maintain aspect ratio */
+    margin: 0 auto 1rem; /* Center and add bottom margin */
+    background-color: #fff; /* Ensure canvas background is white */
+}
+
+#drawing-canvas {
+    display: block; /* Remove extra space below canvas */
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+.drawing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center; /* Center controls */
+    margin-top: 1rem;
+    width: 100%;
+    max-width: 550px; /* Match canvas container */
+}
+
+.drawing-controls label {
+    font-size: 0.9rem;
+    color: var(--dark-muted, #555);
+}
+
+.drawing-controls input[type="color"] {
+    width: 36px;
+    height: 36px;
+    border: none;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    overflow: hidden; /* For some browser UIs */
+}
+
+.drawing-controls input[type="range"] {
+    flex-grow: 1;
+    max-width: 150px;
+}
+
+#clear-button {
+    /* Style like a secondary button */
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    background-color: #f8f9fa;
+    color: var(--dark);
+    border: 1px solid #ced4da;
+    border-radius: var(--radius-sm); /* Consistent radius */
+}
+
+#clear-button:hover {
+    background-color: #e9ecef;
+}
+
+#prompt-to-draw {
+    margin-bottom: 1rem; /* Add space below prompt */
+    font-size: 1.1rem; /* Slightly larger prompt text */
+    color: var(--dark);
+    font-weight: 500;
+}
+
+#prompt-to-draw span {
+    color: var(--primary);
+    font-weight: 600;
+}
+
 /* 圖片猜測 */
 #image-to-guess {
     width: 100%;
@@ -405,6 +644,18 @@
     border-radius: var(--radius-sm);
     background-color: white;
     margin-bottom: 1.5rem;
+}
+
+/* Guess Area Specifics */
+#image-to-guess {
+    max-width: 100%;
+    height: auto;
+    max-height: 350px; /* Consistent max height */
+    border: 1px solid #dee2e6;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05));
+    background-color: #fff; /* Ensure background for transparent images */
+    margin: 0 auto 1rem; /* Center and add bottom margin */
 }
 
 /* 結果區域 */
@@ -490,6 +741,66 @@
     margin-top: 0.5rem;
 }
 
+/* Results Area Specifics */
+#books-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid */
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.book-item {
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-xs);
+}
+
+.book-item h4 {
+    color: var(--primary);
+    margin-bottom: 0.8rem;
+    font-size: 1.1rem;
+}
+
+.book-entry {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px dashed #e0e0e0;
+}
+
+.book-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.book-drawing {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid #dee2e6;
+    margin-top: 0.5rem;
+}
+
+.tag-drawing, .tag-guess {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-xs);
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.tag-drawing {
+    background-color: var(--secondary-light);
+    color: var(--secondary-dark);
+}
+
+.tag-guess {
+    background-color: var(--accent-light);
+    color: var(--accent-dark);
+}
+
 /* 按鈕樣式 */
 .btn {
     display: inline-block;
@@ -556,9 +867,9 @@
 
 /* 動畫 */
 @keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
+    0% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0.7; transform: scale(1); }
 }
 
 .pulse-animation {
@@ -566,7 +877,22 @@
 }
 
 .fade-in-animation {
-    animation: fadeIn 0.5s ease-in-out;
+    animation: zoomIn 0.5s ease-out forwards;
+}
+
+@keyframes zoomIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.pulse-animation {
+    animation: pulse-light 1s ease-out;
+}
+
+@keyframes pulse-light {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
 }
 
 .hidden {
@@ -580,64 +906,117 @@
     width: 15vw;
     height: 15vw;
     background-color: var(--accent);
-    opacity: 0.05;
+    opacity: 0.03; /* Make them more subtle */
     border-radius: 30% 70% 50% 50% / 50%;
     transform: translateY(-50%);
+}
+
+/* Background shapes - ensure they are subtle */
+.background-shape {
+    z-index: -1; /* Ensure they are behind content */
+}
+
+.background-shape.shape-1 {
+    opacity: 0.03; /* Make them more subtle */
+}
+
+.background-shape.shape-2 {
+    opacity: 0.03;
+}
+
+.background-shape.shape-3 {
+    opacity: 0.03;
 }
 
 /* 響應式設計 */
 @media (max-width: 1200px) {
     .game-container {
+        padding: 1rem; /* Further reduce padding */
+        gap: 1rem;
+    }
+    .sidebar {
+        width: 280px;
+    }
+    .game-stage-area {
         padding: 1.5rem;
-        gap: 1.5rem;
     }
 }
 
 @media (max-width: 992px) {
+    .game-container {
+        flex-direction: column; /* Stack sidebar and main content */
+        margin-top: 0.5rem; /* Reduce top margin when stacked */
+    }
     .sidebar {
-        width: 280px;
+        width: 100%; /* Full width for sidebar */
+        order: 2; /* Move sidebar below main content if desired, or 1 for above */
+        height: auto; /* Adjust height */
+        max-height: 45vh; /* Slightly more height for player list */
+    }
+    .player-card {
+        height: auto; /* Auto height for player card */
+    }
+    .main-content {
+        order: 1;
+    }
+    .navbar {
+        padding: 0.8rem 1rem;
+    }
+    .room-info {
+        font-size: 0.85rem;
+        padding: 0.3rem 0.8rem;
+        max-width: 100px; /* Adjust for very small screens */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .nav-actions .btn-secondary span {
+        display: none; /* Hide text on small screens */
+    }
+    .nav-actions .btn-secondary {
+        padding: 0.5rem; /* Icon only button */
+    }
+    .game-stage-area {
+        padding: 1.5rem 1rem; /* Adjust padding for smaller screens */
+        min-height: 250px; /* Adjust min height */
+    }
+    #drawing-canvas-container, .drawing-controls {
+        max-width: 100%; /* Allow full width on smaller screens */
     }
 }
 
 @media (max-width: 768px) {
-    .game-container {
-        flex-direction: column;
-        padding: 1rem;
-        gap: 1.5rem;
-    }
-    
-    .sidebar {
-        width: 100%;
-        flex-direction: column-reverse;
-    }
-    
-    .navbar {
-        padding: 0.8rem 1rem;
-    }
-    
-    .room-info {
-        font-size: 1rem;
-        padding: 0.4rem 0.8rem;
-    }
-    
-    .card-header {
-        padding: 1.2rem;
-    }
-    
-    .card-body {
-        padding: 1.2rem;
-    }
-    
-    #drawing-tools {
-        justify-content: center;
-    }
-    
-    #chat-log {
-        height: 200px;
-    }
-    
+    /* .game-container, .sidebar, .main-content already handled by 992px */
     .status-bar {
-        margin-bottom: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem; /* Adjust padding */
+    }
+    .round-indicator {
+        margin-left: 0;
+        font-size: 0.8rem; /* Smaller font for round indicator */
+    }
+    .drawing-controls {
+        flex-direction: column;
+        align-items: stretch; /* Stretch controls to full width */
+    }
+    #books-container {
+        grid-template-columns: 1fr; /* Single column for books on small screens */
+    }
+    .book {
+        padding: 1rem; /* Reduce padding for books */
+    }
+    .book h4 {
+        font-size: 1.1rem; /* Adjust book title size */
+    }
+    .btn, #submit-prompt-button, #submit-drawing-button, #submit-guess-button {
+        padding: 0.6rem 1.2rem; /* Smaller buttons on mobile */
+        font-size: 0.9rem;
+    }
+    .form-input, #prompt-input, #guess-input {
+        padding: 0.7rem 0.9rem; /* Adjust input padding */
+        font-size: 0.95rem;
     }
 }
 
