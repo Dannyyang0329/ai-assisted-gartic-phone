@@ -88,8 +88,19 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
                 if not room['players']:
                     del waiting_rooms[self.room_group_name]
                 else:
-                    # 向剩餘玩家廣播狀態
-                    await self.broadcast_room_state("玩家離開")
+                    # 檢查是否還有真實玩家
+                    has_real_player = False
+                    for player in room['players'].values():
+                        if not player.get('isBot', False):
+                            has_real_player = True
+                            break
+                    
+                    # 如果沒有真實玩家，移除所有機器人和房間
+                    if not has_real_player:
+                        del waiting_rooms[self.room_group_name]
+                    else:
+                        # 向剩餘玩家廣播狀態
+                        await self.broadcast_room_state("玩家離開")
 
         # 離開房間群組
         await self.channel_layer.group_discard(
@@ -267,17 +278,17 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             'turn_order': [],
             'total_rounds': len(room['players'])  # 記錄總回合數
         }
-        
-        # 將等待室的玩家資訊轉移到遊戲房間
+
+        # 將等待室的機器人資訊轉移到遊戲房間
         for player_id, player_data in room['players'].items():
-            game_rooms[game_room_key]['players'][player_id] = {
-                'name': player_data['name'],
-                'connected': True,
-                'isBot': player_data.get('isBot', False)
-            }
+            if player_data.get('isBot', False):
+                game_rooms[game_room_key]['players'][player_id] = {
+                    'name': player_data['name'],
+                    'isBot': True,
+                }
         
-        # 獲取當前等待室中的所有玩家ID
-        waiting_room_players = list(room['players'].keys())
+        # 獲取當前等待室中的所有玩家ID (不包括機器人)
+        waiting_room_players = [player_id for player_id, player_data in room['players'].items() if not player_data.get('isBot', False)]
         
         # 通知所有玩家遊戲開始
         await self.channel_layer.group_send(
@@ -353,18 +364,14 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs'].get('room_name', 'default')
         room_name_hash = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         self.room_group_name = f'game_{room_name_hash}'
-        self.player_id = self.channel_name  # 暫時用 channel_name 作為玩家 ID
-        
-        # 從URL或查詢參數中獲取用戶ID (如果有)
+
         query_string = self.scope.get('query_string', b'').decode()
-        self.user_id = None
         if 'userid=' in query_string:
             import urllib.parse
             params = dict(urllib.parse.parse_qsl(query_string))
             self.user_id = params.get('userid')
-            logger.info(f"GameConsumer: 從查詢參數獲取用戶ID: {self.user_id}")
-            self.player_id = self.user_id  # 使用用戶ID作為玩家ID
-            
+            self.player_id = self.user_id
+
         # 加入房間群組
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -378,11 +385,10 @@ class GameConsumer(AsyncWebsocketConsumer):
         # 添加玩家到房間 (如果不存在)
         if room and self.player_id not in room['players']:
             room['players'][self.player_id] = {
-                'name': f'玩家_{self.player_id[:4]}',
-                'connected': True,
+                'name': self.player_id,
                 'isBot': False
             }
-            logger.info(f"玩家 {self.player_id} 已加入遊戲房間 {self.room_group_name}")
+            logger.info(f"GameConsumer: 玩家 {self.player_id} 已加入遊戲房間 {self.room_group_name}")
         
         # 廣播更新的遊戲狀態
         if room:
@@ -420,9 +426,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         # 使用更健壯的方式檢查用戶ID
         user_id = getattr(self, 'user_id', None)
         if user_id:
-            logger.info(f"GameConsumer: 正在從活躍集合中移除用戶ID: {user_id}")
             await self.remove_user_id(user_id)
-            logger.info(f"GameConsumer: 用戶ID已移除, 當前活躍IDs: {active_guest_ids}")
 
     async def receive(self, text_data):
         try:
@@ -435,7 +439,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 print(f"Error: Room {self.room_group_name} not found.")
                 return
 
-            print(f"Received message type: {message_type} from {self.player_id} in {self.room_group_name}")
+            print(f"GameConsumer: Received message type: {message_type} from {self.player_id} in {self.room_name}")
 
             if message_type == 'chat_message':
                 await self.handle_chat_message(payload.get('message', ''))
@@ -471,8 +475,6 @@ class GameConsumer(AsyncWebsocketConsumer):
             import traceback
             traceback.print_exc()
 
-
-    # --- 訊息處理函數 ---
     async def handle_chat_message(self, message):
          if message:
              room = game_rooms[self.room_group_name]
@@ -495,9 +497,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         
         # 設置遊戲基本參數
         players_count = len(room['players'])
-        if players_count < 2:
-            await self.send_message('error', {'message': '至少需要2名玩家才能開始遊戲'})
-            return False
             
         # 確定玩家順序
         room['turn_order'] = list(room['players'].keys())
@@ -834,7 +833,6 @@ class GameConsumer(AsyncWebsocketConsumer):
              }
          )
 
-    # --- 遊戲流程控制函數 ---
     async def start_drawing_round(self):
         room = game_rooms[self.room_group_name]
         room['state'] = 'drawing'
@@ -938,7 +936,6 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         await self.broadcast_game_state(f"第 {room['current_round']} 輪 - 請根據繪畫猜測！")
 
-
     async def finish_game(self):
         room = game_rooms[self.room_group_name]
         room['state'] = 'finished'
@@ -960,8 +957,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.broadcast_game_state("遊戲結束！查看結果。")
         # 可以考慮一段時間後重置房間狀態回 waiting
 
-
-    # --- 廣播和發送輔助函數 ---
     async def broadcast_game_state(self, status_message=""):
         """向房間內所有玩家廣播當前的遊戲狀態"""
         room = game_rooms.get(self.room_group_name)
@@ -1008,7 +1003,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                  'type': message_type,
                  'payload': payload
              }))
-
 
     async def send_message(self, event):
         """處理來自 channel_layer.send 的單獨發送請求"""

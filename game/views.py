@@ -23,14 +23,6 @@ def index(request):
     return render(request, 'game/index.html', context)
 
 def room(request, room_name):
-    # Get the user ID from sessionStorage
-    userid = request.POST.get('userid', '') or request.headers.get('X-User-Id', '')
-    
-    # 如果沒有用戶ID或ID不符合要求，重定向到主頁面
-    if not userid:
-        logger.info(f"room視圖: 未提供用戶ID，重定向到主頁")
-        return redirect(f'/?redirect_room={room_name}')
-    
     return render(request, 'game/room.html', {
         'room_name': room_name
     })

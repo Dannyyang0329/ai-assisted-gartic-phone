@@ -195,21 +195,8 @@
         const lineWidth = document.getElementById('line-width');
         const lineWidthValue = document.getElementById('line-width-value');
         
-        // 獲取當前登入用戶信息
-        const currentUser = {
-            isAuthenticated: false,
-            username: "guest_" + Math.random().toString(36).substring(2, 7),
-            displayName: "訪客"
-        };
-
-        // 從URL獲取用戶ID (如果有)
-        const urlParams = new URLSearchParams(window.location.search);
-        const userIdFromUrl = urlParams.get('userid');
-        const autoStart = urlParams.get('auto_start') === 'true';
-        
-        if (userIdFromUrl) {
-            currentUser.username = userIdFromUrl;
-        }
+        // 獲取當前登入用戶信息 (sessionStorage)
+        const user_id = sessionStorage.getItem('artflow_userid');
         
         // UI 元素
         const gameStatus = document.getElementById('game-status');
@@ -246,28 +233,20 @@
         // --- WebSocket 連接 ---
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const gameSocket = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws/game/${roomName}/?userid=${encodeURIComponent(currentUser.username)}`
+            `${wsProtocol}//${window.location.host}/ws/game/${roomName}/?userid=${user_id}`
         );
 
         gameSocket.onopen = function(e) {
             console.log('WebSocket connection established');
-            resizeCanvas();
-            sendMessage('user_info', {
-                username: currentUser.username,
-                displayName: currentUser.displayName
-            });
+            // resizeCanvas();
+            // sendMessage('user_info', {
+            //     username: user_id,
+            //     displayName: user_id,
+            // });
             
-            // 檢查是否從等待室過來需要自動開始遊戲
-            if (autoStart) {
-                console.log('Auto starting game...');
-                // 稍微延遲以確保服務器已準備好
-                setTimeout(() => {
-                    sendMessage('start_game');
-                    startGameButton.disabled = true; 
-                    startGameButton.textContent = '正在啟動...';
-                    showStatusMessage('遊戲自動啟動中...', 'info');
-                }, 1000);
-            }
+            sendMessage('start_game');
+            startGameButton.disabled = true; 
+            startGameButton.textContent = '正在啟動...';
         };
         
         gameSocket.onclose = function(e) {
