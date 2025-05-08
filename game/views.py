@@ -74,6 +74,10 @@ def check_userid_availability(request):
     if not userid:
         return JsonResponse({'available': False, 'message': '請輸入用戶 ID'})
     
+    # 檢查是否是 null
+    if userid == 'null':
+        return JsonResponse({'available': False, 'message': '用戶 ID 不能為 null'})
+    
     # 檢查長度
     if len(userid) < 3:
         return JsonResponse({'available': False, 'message': '用戶 ID 至少需要 3 個字符'})

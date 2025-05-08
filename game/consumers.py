@@ -34,7 +34,6 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             waiting_rooms[self.room_group_name] = {
                 'original_room_name': self.room_name,  # 保存原始房間名稱以供顯示
                 'players': {},  # {player_id: {'name': 'PlayerName', 'isBot': False, 'isHost': False}}
-                'bot_count': 0,
                 'host_id': self.player_id,  # 第一個加入的玩家為房主
             }
 
@@ -164,24 +163,18 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             }))
             return
             
-        # 檢查機器人數量是否已達上限
-        # if room['bot_count'] >= 3:
-        #     await self.send(text_data=json.dumps({
-        #         'type': 'error',
-        #         'payload': {'message': '機器人數量已達上限'}
-        #     }))
-        #     return
+        # 計算當前機器人數量用於生成新機器人ID
+        bot_count = sum(1 for player in room['players'].values() if player.get('isBot', False))
             
         # 添加機器人
-        bot_id = f"bot_{room['bot_count'] + 1}"
-        bot_name = "畫畫機器人" + str(room['bot_count'] + 1)
+        bot_id = f"bot_{bot_count}"
+        bot_name = "畫畫機器人" + str(bot_count)
         room['players'][bot_id] = {
             'id': bot_id,
             'name': bot_name,
             'isBot': True,
             'isHost': False
         }
-        room['bot_count'] += 1
         
         # 向所有玩家廣播更新後的狀態
         await self.broadcast_room_state("已添加機器人")
@@ -211,7 +204,8 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             return
             
         # 檢查是否有機器人可移除
-        if room['bot_count'] <= 0:
+        bot_players = [player_id for player_id, player in room['players'].items() if player.get('isBot', False)]
+        if not bot_players:
             await self.send(text_data=json.dumps({
                 'type': 'error',
                 'payload': {'message': '沒有機器人可以移除'}
@@ -219,32 +213,25 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             return
             
         # 移除最後一個機器人
-        bot_to_remove = None
-        for player_id, player in room['players'].items():
-            if player['isBot']:
-                bot_to_remove = player_id
-                break
-                
-        if bot_to_remove:
-            bot_name = room['players'][bot_to_remove]['name']
-            del room['players'][bot_to_remove]
-            room['bot_count'] -= 1
-            
-            # 向所有玩家廣播更新後的狀態
-            await self.broadcast_room_state("已移除機器人")
-            
-            # 發送通知
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'broadcast_message',
-                    'message_type': 'notification',
-                    'payload': {
-                        'message': f"已移除機器人玩家：{bot_name}",
-                        'level': 'info'
-                    }
+        bot_to_remove = bot_players[-1]
+        bot_name = room['players'][bot_to_remove]['name']
+        del room['players'][bot_to_remove]
+        
+        # 向所有玩家廣播更新後的狀態
+        await self.broadcast_room_state("已移除機器人")
+        
+        # 發送通知
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'broadcast_message',
+                'message_type': 'notification',
+                'payload': {
+                    'message': f"已移除機器人玩家：{bot_name}",
+                    'level': 'info'
                 }
-            )
+            }
+        )
 
     async def handle_start_game(self):
         room = waiting_rooms[self.room_group_name]
@@ -322,9 +309,12 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
                 'isHost': player_data.get('isHost', False)
             })
 
+        # 計算機器人數量
+        bot_count = sum(1 for player in room['players'].values() if player.get('isBot', False))
+
         state_payload = {
             'players': players_list,
-            'bot_count': room['bot_count'],
+            'bot_count': bot_count,  # 保留bot_count以向後兼容，但現在是從players計算出來的
             'status_message': status_message,
         }
 

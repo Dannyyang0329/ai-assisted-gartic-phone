@@ -120,10 +120,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // 更新房間狀態
     function updateRoomState(roomState) {
         players = roomState.players || [];
-        botCount = roomState.bot_count || 0;
         
         // 更新玩家列表
         updatePlayerList();
+        
+        // 計算機器人數量
+        const botCount = players.filter(player => player.isBot).length;
         
         // 更新玩家數量
         const playerCount = players.length;
@@ -131,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 更新按鈕狀態
         startGameButton.disabled = playerCount < MIN_PLAYERS_TO_START;
-        addBotButton.disabled = playerCount >= MAX_PLAYERS || botCount >= 3;
+        addBotButton.disabled = playerCount >= MAX_PLAYERS;
         removeBotButton.disabled = botCount <= 0;
         
         // 如果有足夠玩家，顯示可以開始的提示
