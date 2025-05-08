@@ -24,5 +24,6 @@ urlpatterns = [
     path('waiting_room/<str:room_name>/', game_views.waiting_room, name='waiting_room'),
     path('room/<str:room_name>/', game_views.room, name='room'),
     path('game/check-userid/', game_views.check_userid_availability, name='game_check_userid'),
+    path('game/register-user-id/', game_views.register_user_id, name='register_user_id'),
     path('game/', include('game.urls')),
 ]

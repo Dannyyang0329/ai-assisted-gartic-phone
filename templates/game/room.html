@@ -36,14 +36,19 @@
     <div class="game-container">
         <!-- 側邊欄：玩家列表和聊天 -->
         <div class="sidebar">
+            <!-- 玩家卡片 -->
             <div class="card player-card">
                 <h3>玩家列表</h3>
+                <div class="player-count">
+                    <span id="player-count-display">0</span>/<span id="player-total">8</span> 位玩家
+                </div>
                 <div id="player-list">
                     <ul id="players"></ul>
                 </div>
                 <button id="start-game-button" class="btn btn-success">開始遊戲</button>
             </div>
             
+            <!-- 聊天卡片 -->
             <div class="card chat-card">
                 <h3>聊天室</h3>
                 <div id="chat-log"></div>
@@ -60,9 +65,16 @@
 
         <!-- 主遊戲區域 -->
         <div class="main-content">
+            <!-- 遊戲狀態區 -->
             <div id="game-status" class="status-bar">
                 <div class="status-icon"></div>
                 <span>等待玩家加入...</span>
+                <div class="round-indicator" id="round-indicator">
+                    <span>回合:</span>
+                    <span id="current-round">0</span>
+                    <span>/</span>
+                    <span id="total-rounds">0</span>
+                </div>
             </div>
             
             <!-- 寫題目區域 -->
@@ -75,7 +87,7 @@
                         <div class="form-group">
                             <input id="prompt-input" type="text" placeholder="例如：一隻貓在彈吉他..." class="form-input" autofocus>
                         </div>
-                        <button id="submit-prompt-button" class="btn btn-block">提交題目</button>
+                        <button id="submit-prompt-button" class="btn btn-primary btn-block">提交題目</button>
                     </div>
                 </div>
             </div>
@@ -85,10 +97,10 @@
                 <div class="card game-card">
                     <div class="card-header">
                         <h3>輪到你畫畫了！</h3>
-                        <div id="prompt-to-draw">題目：<span></span></div>
+                        <div id="prompt-to-draw" class="drawing-prompt">題目：<span></span></div>
                     </div>
                     <div class="card-body">
-                        <div id="drawing-tools">
+                        <div id="drawing-tools" class="drawing-tools">
                             <button id="clear-button" class="tool-btn" title="清除畫布">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -96,16 +108,18 @@
                             </button>
                             <div class="color-picker-container">
                                 <input type="color" id="color-picker" value="#000000" title="選擇顏色">
+                                <span class="color-label">顏色</span>
                             </div>
                             <div class="line-width-control">
                                 <input type="range" id="line-width" min="1" max="20" value="5" title="調整線寬">
                                 <span id="line-width-value">5</span>
+                                <span class="width-label">線寬</span>
                             </div>
                         </div>
-                        <div id="canvas-container">
+                        <div id="canvas-container" class="canvas-container">
                             <canvas id="drawing-canvas"></canvas>
                         </div>
-                        <button id="submit-drawing-button" class="btn btn-block">完成繪畫</button>
+                        <button id="submit-drawing-button" class="btn btn-primary btn-block">完成繪畫</button>
                     </div>
                 </div>
             </div>
@@ -117,14 +131,14 @@
                         <h3>輪到你猜猜看了！</h3>
                     </div>
                     <div class="card-body">
-                        <div id="image-to-guess-container">
+                        <div id="image-to-guess-container" class="image-container">
                             <p>這是什麼？</p>
                             <img id="image-to-guess" src="" alt="等待繪畫...">
                         </div>
                         <div class="form-group">
                             <input id="guess-input" type="text" placeholder="輸入你的猜測..." class="form-input">
                         </div>
-                        <button id="submit-guess-button" class="btn btn-block">提交猜測</button>
+                        <button id="submit-guess-button" class="btn btn-primary btn-block">提交猜測</button>
                     </div>
                 </div>
             </div>
@@ -134,10 +148,14 @@
                 <div class="card game-card results-card">
                     <div class="card-header">
                         <h2>遊戲結束！結果如下</h2>
+                        <p class="results-desc">每本故事本展示了創意如何經由多個玩家傳遞和演變</p>
                     </div>
                     <div class="card-body">
-                        <div id="books-container"></div>
-                        <button onclick="window.location.href='/'" class="btn btn-secondary">返回大廳</button>
+                        <div id="books-container" class="books-container"></div>
+                        <div class="results-actions">
+                            <button onclick="window.location.href='/'" class="btn btn-secondary">返回大廳</button>
+                            <button onclick="shareResults()" class="btn btn-primary">分享結果</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -187,6 +205,8 @@
         // 從URL獲取用戶ID (如果有)
         const urlParams = new URLSearchParams(window.location.search);
         const userIdFromUrl = urlParams.get('userid');
+        const autoStart = urlParams.get('auto_start') === 'true';
+        
         if (userIdFromUrl) {
             currentUser.username = userIdFromUrl;
         }
@@ -194,6 +214,7 @@
         // UI 元素
         const gameStatus = document.getElementById('game-status');
         const playerList = document.getElementById('players');
+        const playerCountDisplay = document.getElementById('player-count-display');
         const startGameButton = document.getElementById('start-game-button');
         const promptInputArea = document.getElementById('prompt-input-area');
         const promptInput = document.getElementById('prompt-input');
@@ -219,6 +240,8 @@
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.lineWidth = 5;
+        context.fillStyle = "#FFFFFF";
+        context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
 
         // --- WebSocket 連接 ---
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -233,6 +256,18 @@
                 username: currentUser.username,
                 displayName: currentUser.displayName
             });
+            
+            // 檢查是否從等待室過來需要自動開始遊戲
+            if (autoStart) {
+                console.log('Auto starting game...');
+                // 稍微延遲以確保服務器已準備好
+                setTimeout(() => {
+                    sendMessage('start_game');
+                    startGameButton.disabled = true; 
+                    startGameButton.textContent = '正在啟動...';
+                    showStatusMessage('遊戲自動啟動中...', 'info');
+                }, 1000);
+            }
         };
         
         gameSocket.onclose = function(e) {
@@ -287,6 +322,25 @@
             currentGameState = stateData.state;
             showStatusMessage(getGameStateText(currentGameState) + (stateData.status_message ? ` - ${stateData.status_message}` : ''), currentGameState);
             updatePlayerList(stateData.players, stateData.waiting_on);
+
+            // 更新回合指示器
+            const currentRoundEl = document.getElementById('current-round');
+            const totalRoundsEl = document.getElementById('total-rounds');
+            if (currentRoundEl && totalRoundsEl) {
+                currentRoundEl.textContent = stateData.current_round || 0;
+                totalRoundsEl.textContent = stateData.total_rounds || 0;
+            }
+            
+            // 顯示/隱藏回合指示器
+            const roundIndicator = document.getElementById('round-indicator');
+            if (roundIndicator) {
+                roundIndicator.style.display = currentGameState === 'waiting' ? 'none' : 'flex';
+            }
+            
+            // 更新玩家計數
+            if (stateData.players) {
+                playerCountDisplay.textContent = Object.keys(stateData.players).length;
+            }
 
             hideAllSections();
 
@@ -350,6 +404,23 @@
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'player-name';
                 nameSpan.textContent = player.name || `玩家 ${playerId.substring(0, 4)}`;
+                
+                // 如果是機器人，添加標籤
+                if (player.isBot) {
+                    const botTag = document.createElement('span');
+                    botTag.className = 'player-tag bot-tag';
+                    botTag.textContent = '機器人';
+                    nameSpan.appendChild(botTag);
+                }
+                
+                // 如果是當前玩家，添加標籤
+                if (playerId === myPlayerId) {
+                    const youTag = document.createElement('span');
+                    youTag.className = 'player-tag you-tag';
+                    youTag.textContent = '(你)';
+                    nameSpan.appendChild(youTag);
+                }
+                
                 li.appendChild(nameSpan);
                 
                 // 如果需要，添加玩家狀態文字
@@ -402,7 +473,6 @@
             promptToDraw.textContent = promptText;
             clearLocalCanvas(); 
             submitDrawingButton.disabled = false;
-            drawingCanvasEl.focus();
         }
 
         function showGuessInput(drawingDataUrl) {
@@ -446,15 +516,28 @@
 
                 const bookDiv = document.createElement('div');
                 bookDiv.className = 'book';
-
+                
+                // 添加故事本標題與原始玩家
                 const originalPlayerName = players[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
                 const title = document.createElement('h4');
                 title.textContent = `${originalPlayerName} 的故事本`;
                 bookDiv.appendChild(title);
 
-                book.forEach(item => {
+                // 創建進度線條
+                const progressLine = document.createElement('div');
+                progressLine.className = 'book-progress-line';
+                bookDiv.appendChild(progressLine);
+
+                book.forEach((item, index) => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'book-item';
+                    
+                    // 添加輪次指示
+                    const roundBadge = document.createElement('div');
+                    roundBadge.className = 'book-round-badge';
+                    roundBadge.textContent = `輪次 ${item.round || index}`;
+                    itemDiv.appendChild(roundBadge);
+                    
                     const itemPlayerName = players[item.player]?.name || `玩家 ${item.player.substring(0,4)}`;
 
                     const typeTag = document.createElement('div');
@@ -498,6 +581,39 @@
                 });
                 booksContainer.appendChild(bookDiv);
             });
+        }
+        
+        // 分享結果功能
+        function shareResults() {
+            // 創建分享訊息
+            const shareText = `我剛剛在 ArtFlow 完成了一場有趣的創意接力遊戲！來和我一起玩：${window.location.origin}`;
+            
+            // 檢查是否支援網頁分享API
+            if (navigator.share) {
+                navigator.share({
+                    title: 'ArtFlow 遊戲結果',
+                    text: shareText,
+                    url: window.location.href,
+                })
+                .catch(err => {
+                    console.error('分享失敗:', err);
+                    fallbackShare();
+                });
+            } else {
+                fallbackShare();
+            }
+            
+            // 回退分享方式
+            function fallbackShare() {
+                const textarea = document.createElement('textarea');
+                textarea.value = shareText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
+                showStatusMessage('分享連結已複製到剪貼簿！', 'success');
+            }
         }
 
         // --- 發送訊息到伺服器 ---
@@ -629,6 +745,7 @@
         drawingCanvasEl.addEventListener('mousedown', function(e) {
             if (currentGameState !== 'drawing' || submitDrawingButton.disabled) return;
             isDrawing = true;
+            
             const rect = drawingCanvasEl.getBoundingClientRect();
             lastX = e.clientX - rect.left;
             lastY = e.clientY - rect.top;

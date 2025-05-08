@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 li.style.backgroundColor = 'var(--secondary)';
                 li.style.color = 'white';
                 
-                // 移除自動提交，僅填充輸入框
                 setTimeout(() => {
                     li.style.backgroundColor = ''; 
                     li.style.color = '';
@@ -53,10 +52,10 @@ document.addEventListener('DOMContentLoaded', function() {
             userIdInput.focus();
             userIdInput.classList.add('highlight');
             
-            // 3秒後移除高亮效果
+            // 2秒後移除高亮效果
             setTimeout(() => {
                 userIdInput.classList.remove('highlight');
-            }, 3000);
+            }, 2000);
             
             // 顯示提示信息
             const userIdStatus = document.querySelector('#userid-status');
@@ -91,10 +90,10 @@ document.addEventListener('DOMContentLoaded', function() {
         userIdInput.focus();
         userIdInput.classList.add('highlight');
         
-        // 3秒後移除高亮效果
+        // 2秒後移除高亮效果
         setTimeout(() => {
             userIdInput.classList.remove('highlight');
-        }, 3000);
+        }, 2000);
     }
     
     // 輸入框事件處理
@@ -111,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const userIdStatusText = userIdStatus.querySelector('.userid-status-text');
     
     let checkTimeout = null;
-    
     userIdInput.addEventListener('input', function() {
         const userId = this.value.trim();
         
@@ -133,7 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 設置延遲以避免頻繁請求
         checkTimeout = setTimeout(() => {
-            // 修改為正確的URL路徑，確保含有完整路徑
             fetch(`/game/check-userid/?userid=${encodeURIComponent(userId)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -184,17 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // 檢查URL參數中是否有重定向類型
-        const redirectRoomType = document.getElementById('redirect-room-type').value || 'waiting_room';
-        
-        // 構建URL
-        let url;
-        if (redirectRoomType === 'room') {
-            url = `/room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
-        } else {
-            url = `/waiting_room/${encodeURIComponent(roomName)}/?userid=${encodeURIComponent(userId)}`;
-        }
-        
         // 檢查ID是否可用，然後跳轉
         submitButton.innerHTML = '檢查中...';
         submitButton.disabled = true;
@@ -203,7 +189,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.available) {
-                    // ID依然可用，繼續提交
+                    // ID依然可用，將用戶ID存儲在sessionStorage中
+                    sessionStorage.setItem('artflow_userid', userId);
+                    
+                    // 構建URL到Waiting Room (不再包含userid)
+                    let url = `/waiting_room/${encodeURIComponent(roomName)}/`;
                     window.location.href = url;
                 } else {
                     // ID已不可用，顯示錯誤信息
@@ -252,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tooltip.style.top = element.offsetHeight + 8 + 'px';
         tooltip.style.left = '0';
         
-        // 3秒後自動消失
+        // 2秒後自動消失
         setTimeout(() => {
             tooltip.style.animation = 'fadeOut 0.3s forwards';
             setTimeout(() => {
@@ -260,6 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip.parentNode.removeChild(tooltip);
                 }
             }, 300);
-        }, 3000);
+        }, 2000);
     }
 });

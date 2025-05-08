@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <title>ArtFlow - {{ room_name }} 等待室</title>
+    <title>ArtFlow - {{ room_name }} Waiting Room</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/room.css' %}">
     <link rel="stylesheet" href="{% static 'css/waiting_room.css' %}">
+    <script src="{% static 'js/waiting_room.js' %}"></script>
 </head>
 <body class="room-page waiting-room-page">
     <!-- 背景裝飾 -->
@@ -33,6 +34,13 @@
             </button>
         </div>
     </nav>
+    
+    <!-- 添加數據屬性來存儲 Django 模板變數 -->
+    <div id="room-data" 
+        data-room-name="{{ room_name }}" 
+        data-csrf-token="{{ csrf_token }}" 
+        style="display: none;">
+    </div>
     
     <div class="container waiting-container">
         <div class="room-header">
@@ -59,7 +67,8 @@
                     <span>遊戲說明</span>
                 </button>
                 <div class="share-link">
-                    <input type="text" id="room-link" readonly value="{{ request.build_absolute_uri|urlencode }}" class="form-input">
+                    <input type="text" id="room-link" readonly value="{{ request.build_absolute_uri }}" class="form-input">
+                    <!-- <input type="text" id="room-link" readonly value="{{ request.build_absolute_uri|urlencode }}" class="form-input"> -->
                     <button id="copy-link" class="btn-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -183,290 +192,5 @@
         </svg>
         <span id="notification-text">連結已複製!</span>
     </div>
-    
-    <script>
-        const roomName = "{{ room_name }}";
-        
-        // 獲取當前登入用戶信息
-        const currentUser = {
-            isAuthenticated: false,
-            username: "guest_" + Math.random().toString(36).substring(2, 7),
-            displayName: "訪客"
-        };
-
-        // DOM 元素
-        const playerList = document.getElementById('player-list');
-        const playerCountDisplay = document.getElementById('player-count-display');
-        const chatLog = document.getElementById('chat-log');
-        const chatMessageInput = document.getElementById('chat-message-input');
-        const chatMessageSubmit = document.getElementById('chat-message-submit');
-        const startGameButton = document.getElementById('start-game-button');
-        const addBotButton = document.getElementById('add-bot');
-        const removeBotButton = document.getElementById('remove-bot');
-        const copyLinkButton = document.getElementById('copy-link');
-        const roomLinkInput = document.getElementById('room-link');
-        const notification = document.getElementById('notification');
-        const notificationText = document.getElementById('notification-text');
-
-        // 設定不包含使用者ID的分享連結
-        const cleanShareUrl = `${window.location.protocol}//${window.location.host}/waiting_room/${roomName}/`;
-        roomLinkInput.value = cleanShareUrl;
-
-        // 玩家資料
-        let players = [];
-        let botCount = 0;
-        const MAX_PLAYERS = 8;
-        const MIN_PLAYERS_TO_START = 2;
-        
-        // 從URL獲取用戶ID (如果有)
-        const urlParams = new URLSearchParams(window.location.search);
-        const userIdFromUrl = urlParams.get('userid');
-        if (userIdFromUrl) {
-            currentUser.username = userIdFromUrl;
-        }
-        
-        // WebSocket 連接
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const gameSocket = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws/waiting_room/${roomName}/?userid=${encodeURIComponent(currentUser.username)}`
-        );
-
-        gameSocket.onopen = function(e) {
-            console.log('WebSocket connection established');
-            sendMessage('user_info', {
-                username: currentUser.username,
-                displayName: currentUser.displayName
-            });
-        };
-        
-        gameSocket.onclose = function(e) {
-            console.error('WebSocket connection closed unexpectedly');
-            showNotification('連線已中斷，請重新整理頁面。', 'error');
-        };
-
-        gameSocket.onerror = function(e) {
-            console.error('WebSocket error:', e);
-            showNotification('連線錯誤，請檢查網路或伺服器狀態。', 'error');
-        }
-
-        // 處理收到的訊息
-        gameSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            const messageType = data.type;
-            const payload = data.payload;
-            
-            console.log("Received message:", messageType, payload);
-
-            switch (messageType) {
-                case 'room_update':
-                    updateRoomState(payload);
-                    break;
-                case 'chat':
-                    appendChatMessage(payload.sender, payload.text);
-                    break;
-                case 'notification':
-                    showNotification(payload.message, payload.level || 'info');
-                    break;
-                case 'game_started':
-                    // 遊戲開始，跳轉到遊戲頁面
-                    window.location.href = `/room/${roomName}/`;
-                    break;
-                case 'error':
-                    showNotification(`錯誤: ${payload.message}`, 'error');
-                    break;
-            }
-        };
-
-        // 發送訊息到伺服器
-        function sendMessage(type, payload = {}) {
-            if (gameSocket.readyState === WebSocket.OPEN) {
-                gameSocket.send(JSON.stringify({ type, payload }));
-            } else {
-                showNotification("無法連接伺服器，請重新整理頁面。", "error");
-            }
-        }
-
-        // 更新房間狀態
-        function updateRoomState(roomState) {
-            players = roomState.players || [];
-            botCount = roomState.bot_count || 0;
-            
-            // 更新玩家列表
-            updatePlayerList();
-            
-            // 更新玩家數量
-            const playerCount = players.length;
-            playerCountDisplay.textContent = playerCount;
-            
-            // 更新按鈕狀態
-            startGameButton.disabled = playerCount < MIN_PLAYERS_TO_START;
-            addBotButton.disabled = playerCount >= MAX_PLAYERS || botCount >= 3;
-            removeBotButton.disabled = botCount <= 0;
-            
-            // 如果有足夠玩家，顯示可以開始的提示
-            if (playerCount >= MIN_PLAYERS_TO_START && startGameButton.disabled) {
-                showNotification("已有足夠玩家，可以開始遊戲！", "success");
-                startGameButton.disabled = false;
-            }
-        }
-
-        // 更新玩家列表
-        function updatePlayerList() {
-            playerList.innerHTML = '';
-            
-            players.forEach((player, index) => {
-                const li = document.createElement('li');
-                li.className = 'player-item';
-                
-                // 創建玩家狀態指示燈
-                const statusDot = document.createElement('span');
-                statusDot.className = 'player-status-dot';
-                
-                if (player.isBot) {
-                    statusDot.classList.add('bot');
-                } else {
-                    statusDot.classList.add('ready');
-                }
-                
-                li.appendChild(statusDot);
-                
-                // 添加玩家順序號碼
-                const orderNumber = document.createElement('span');
-                orderNumber.className = 'player-number';
-                orderNumber.textContent = index + 1;
-                li.appendChild(orderNumber);
-                
-                // 添加玩家名稱
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'player-name';
-                nameSpan.textContent = player.name;
-                
-                if (player.isBot) {
-                    nameSpan.innerHTML += ' <span class="bot-tag">機器人</span>';
-                } else if (player.isHost) {
-                    nameSpan.innerHTML += ' <span class="host-tag">房主</span>';
-                } else if (player.id === currentUser.username) {
-                    nameSpan.innerHTML += ' <span class="you-tag">(你)</span>';
-                }
-                
-                li.appendChild(nameSpan);
-                
-                playerList.appendChild(li);
-            });
-        }
-
-        // 添加聊天訊息
-        function appendChatMessage(sender, text) {
-            const messageElement = document.createElement('div');
-            messageElement.className = 'chat-message animate__animated animate__fadeIn';
-            
-            const senderElement = document.createElement('div');
-            senderElement.className = 'chat-sender';
-            senderElement.textContent = sender;
-            
-            const textElement = document.createElement('div');
-            textElement.className = 'chat-text';
-            textElement.textContent = text;
-            
-            messageElement.appendChild(senderElement);
-            messageElement.appendChild(textElement);
-            
-            chatLog.appendChild(messageElement);
-            chatLog.scrollTop = chatLog.scrollHeight;
-        }
-
-        // 顯示通知
-        function showNotification(message, type = 'info') {
-            notificationText.textContent = message;
-            notification.className = `notification notification-${type} animate__animated animate__fadeIn`;
-            notification.classList.remove('hidden');
-            
-            // 3秒後隱藏
-            setTimeout(() => {
-                notification.classList.add('animate__fadeOut');
-                setTimeout(() => {
-                    notification.classList.add('hidden');
-                    notification.classList.remove('animate__fadeOut');
-                }, 500);
-            }, 3000);
-        }
-
-        // 添加機器人
-        addBotButton.addEventListener('click', function() {
-            sendMessage('add_bot');
-        });
-
-        // 移除機器人
-        removeBotButton.addEventListener('click', function() {
-            sendMessage('remove_bot');
-        });
-
-        // 開始遊戲
-        startGameButton.addEventListener('click', function() {
-            if (players.length >= MIN_PLAYERS_TO_START) {
-                sendMessage('start_game');
-                startGameButton.disabled = true;
-                startGameButton.innerHTML = '正在準備遊戲...';
-                showNotification('遊戲即將開始！', 'success');
-            } else {
-                showNotification(`至少需要 ${MIN_PLAYERS_TO_START} 位玩家才能開始遊戲`, 'error');
-            }
-        });
-
-        // 複製連結
-        copyLinkButton.addEventListener('click', function() {
-            roomLinkInput.select();
-            document.execCommand('copy');
-            showNotification('房間連結已複製到剪貼簿！', 'success');
-        });
-
-        // 聊天功能
-        chatMessageSubmit.addEventListener('click', function() {
-            const message = chatMessageInput.value.trim();
-            if (message) {
-                sendMessage('chat_message', { message: message });
-                chatMessageInput.value = '';
-            }
-        });
-
-        chatMessageInput.addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') {
-                chatMessageSubmit.click();
-            }
-        });
-        
-        // 模擬初始玩家狀態（第一個玩家就是當前用戶）
-        const initialPlayers = [
-            {
-                id: currentUser.username,
-                name: currentUser.displayName,
-                isHost: true,
-                isBot: false
-            }
-        ];
-        
-        players = initialPlayers;
-        updatePlayerList();
-
-        // 遊戲說明模態框控制
-        const instructionsModal = document.getElementById('instructions-modal');
-        const helpButton = document.getElementById('help-button');
-        const closeModal = document.getElementById('close-modal');
-        
-        helpButton.addEventListener('click', function() {
-            instructionsModal.classList.add('show');
-        });
-        
-        closeModal.addEventListener('click', function() {
-            instructionsModal.classList.remove('show');
-        });
-        
-        // 點擊模態框外部關閉
-        window.addEventListener('click', function(event) {
-            if (event.target == instructionsModal) {
-                instructionsModal.classList.remove('show');
-            }
-        });
-    </script>
 </body>
 </html>

@@ -25,4 +25,3 @@ application = ProtocolTypeRouter({
         )
     ),
 })
-print("--- ASGI application configured ---") # <--- 加入這行
