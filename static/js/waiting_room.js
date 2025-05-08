@@ -39,7 +39,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const playerCountDisplay = document.getElementById('player-count-display');
     const chatLog = document.getElementById('chat-log');
     const chatMessageInput = document.getElementById('chat-message-input');
-    const chatMessageSubmit = document.getElementById('chat-message-submit');
     const startGameButton = document.getElementById('start-game-button');
     const addBotButton = document.getElementById('add-bot');
     const removeBotButton = document.getElementById('remove-bot');
@@ -254,16 +253,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 聊天功能
-    chatMessageSubmit.addEventListener('click', function() {
-        const message = chatMessageInput.value.trim();
-        if (message) {
-            sendMessage('chat_message', { message: message });
-            chatMessageInput.value = '';
-        }
-    });
     chatMessageInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter') {
-            chatMessageSubmit.click();
+            const message = chatMessageInput.value.trim();
+            if (message) {
+                sendMessage('chat_message', { message: message });
+                chatMessageInput.value = '';
+            }
         }
     });
     

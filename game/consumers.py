@@ -433,10 +433,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             message_type = data.get('type')
             payload = data.get('payload', {})
-            room = game_rooms.get(self.room_group_name)
 
+            room = game_rooms.get(self.room_group_name)
             if not room:
-                print(f"Error: Room {self.room_group_name} not found.")
+                logger.warning(f"GameConsumer: 房間 {self.room_group_name} 不存在，但收到訊息類型 {message_type}")
                 return
 
             print(f"GameConsumer: Received message type: {message_type} from {self.player_id} in {self.room_name}")
@@ -462,7 +462,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                 # 保存用戶ID
                 self.user_id = payload.get('username')
                 logger.info(f"GameConsumer: 設置user_id為: {self.user_id}")
-                
                 # 確保用戶ID加入活躍集合
                 if self.user_id and self.user_id not in active_guest_ids:
                     await self.add_user_id(self.user_id)
@@ -474,22 +473,6 @@ class GameConsumer(AsyncWebsocketConsumer):
             print(f"Error processing message: {e}")
             import traceback
             traceback.print_exc()
-
-    async def handle_chat_message(self, message):
-         if message:
-             room = game_rooms[self.room_group_name]
-             player_name = room['players'].get(self.player_id, {}).get('name', '未知玩家')
-             await self.channel_layer.group_send(
-                 self.room_group_name,
-                 {
-                     'type': 'broadcast_message',
-                     'message_type': 'chat',
-                     'payload': {
-                         'sender': player_name,
-                         'text': message
-                     }
-                 }
-             )
 
     async def handle_start_game(self):
         """初始化遊戲並開始第一輪"""
@@ -998,7 +981,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                  }))
         else:
             # 其他廣播訊息正常發送給所有 group 成員
-            # (包括 game_state_update, chat, request_prompt, game_over 等)
+            # (包括 game_state_update, request_prompt, game_over 等)
+            # Removed 'chat' from the comment as it's no longer handled here for game_room
              await self.send(text_data=json.dumps({
                  'type': message_type,
                  'payload': payload
