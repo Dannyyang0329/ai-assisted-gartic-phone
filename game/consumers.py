@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 import random
 from asgiref.sync import sync_to_async
 from .views import active_guest_ids  # 導入全局集合
+import math # Add math import for ceil
 
 # 添加基本日誌設置
 logger = logging.getLogger(__name__)
@@ -247,7 +248,6 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
     async def handle_start_game(self):
         room = waiting_rooms[self.room_group_name]
         
-        # 檢查是否為房主
         if room['host_id'] != self.player_id:
             await self.send(text_data=json.dumps({
                 'type': 'error',
@@ -255,54 +255,58 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             }))
             return
             
-        # 檢查玩家數量是否足夠
-        if len(room['players']) < 4:
+        num_actual_players = len([p for p in room['players'].values() if not p.get('isBot', False)])
+        if num_actual_players < 2: # 至少需要2名人類玩家才能開始遊戲 (例如，2人遊戲，N=2, N-1=1輪操作)
+                                 # 根據使用者描述，N至少為2。如果N=2, 總共2個條目，1次繪畫。
+                                 # 如果N=3, 總共3個條目，1畫1猜。
+                                 # 遊戲至少需要2人。
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'payload': {'message': '至少需要4名玩家才能開始遊戲'}
+                'payload': {'message': '至少需要2名玩家才能開始遊戲'}
             }))
             return
             
-        # 設置遊戲房間的初始狀態
         hash_key = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         game_room_key = f'game_{hash_key}'
         
-        game_rooms[game_room_key] = {
-            'original_room_name': self.room_name,
-            'players': {},
-            'state': 'waiting',
-            'prompts': {},
-            'books': {},
-            'current_round': 0,
-            'assignments': {},
-            'turn_order': [],
-            'total_rounds': len(room['players'])  # 記錄總回合數
-        }
+        # 獲取當前等待室中的所有玩家ID (包括機器人)
+        # turn_order 將在 GameConsumer 中確定，這裡只傳遞所有參與者
+        all_player_ids_in_order = list(room['players'].keys()) # 保持加入順序或由 GameConsumer 處理順序
 
-        # 將等待室的機器人資訊轉移到遊戲房間
-        for player_id, player_data in room['players'].items():
-            if player_data.get('isBot', False):
-                game_rooms[game_room_key]['players'][player_id] = {
-                    'name': player_data['name'],
-                    'isBot': True,
-                }
-        
-        # 獲取當前等待室中的所有玩家ID (不包括機器人)
-        waiting_room_players = [player_id for player_id, player_data in room['players'].items() if not player_data.get('isBot', False)]
-        
-        # 通知所有玩家遊戲開始
+        # 創建遊戲房間實例
+        game_rooms[game_room_key] = {
+            'room_name': self.room_name,
+            'players': dict(room['players']), # 複製玩家資訊
+            'host_id': room['host_id'],
+            'turn_order': all_player_ids_in_order, # GameConsumer 將使用這個順序
+            'state': 'initializing',
+            'current_op_number': 0,
+            'total_ops': len(all_player_ids_in_order) - 1 if len(all_player_ids_in_order) > 0 else 0,
+            'current_display_round': 0,
+            'total_display_rounds': math.ceil((len(all_player_ids_in_order) - 1) / 2.0) if len(all_player_ids_in_order) > 1 else 0,
+            'books': {player_id: [] for player_id in all_player_ids_in_order},
+            'assignments': {},
+            'game_log': []
+        }
+        print(f"Game room {game_room_key} created with players: {all_player_ids_in_order}")
+        print(f"Total ops: {game_rooms[game_room_key]['total_ops']}, Total display rounds: {game_rooms[game_room_key]['total_display_rounds']}")
+
+
+        # 通知所有玩家遊戲開始，並傳遞遊戲房間的 key (room_name)
         await self.channel_layer.group_send(
-            self.room_group_name,
+            self.room_group_name, # 仍然發送到 waiting_room group
             {
-                'type': 'broadcast_message',
+                'type': 'broadcast_message', # WaitingRoomConsumer 需要有 broadcast_message 方法
                 'message_type': 'game_started',
                 'payload': {
-                    'room_name': self.room_name,
-                    # 將所有預計進入遊戲的玩家ID發送給前端
-                    'player_ids': waiting_room_players
+                    'room_name': self.room_name, # 前端將使用此 room_name 導航到 /room/<room_name>
+                    'player_ids': all_player_ids_in_order # 可選，前端可能不需要
                 }
             }
         )
+        
+        # 清理等待室 (可選，或者讓其自然過期)
+        # del waiting_rooms[self.room_group_name]
 
     async def broadcast_room_state(self, status_message=""):
         """向房間內所有玩家廣播當前的房間狀態"""
@@ -372,31 +376,38 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.user_id = params.get('userid')
             self.player_id = self.user_id
 
-        # 加入房間群組
+        # 檢查遊戲房間是否存在 (由 WaitingRoomConsumer 創建)
+        if self.room_group_name not in game_rooms:
+            print(f"Game room {self.room_group_name} not found. Disconnecting.")
+            await self.close()
+            return
+
+        room = game_rooms[self.room_group_name]
+        
+        # 確保玩家是該房間的一員
+        if self.player_id not in room['players']:
+            print(f"Player {self.player_id} not in room {self.room_group_name}. Disconnecting.")
+            await self.close()
+            return
+
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         await self.accept()
         
-        # 獲取房間狀態
-        room = game_rooms.get(self.room_group_name)
+        # 更新玩家的 channel_name，用於私訊
+        room['players'][self.player_id]['channel_name'] = self.channel_name
         
-        # 添加玩家到房間 (如果不存在)
-        if room and self.player_id not in room['players']:
-            room['players'][self.player_id] = {
-                'name': self.player_id,
-                'isBot': False
-            }
-            logger.info(f"GameConsumer: 玩家 {self.player_id} 已加入遊戲房間 {self.room_group_name}")
+        print(f"Player {self.player_id} connected to game room {self.room_name} (channel: {self.channel_name})")
+
+        # 如果所有玩家都已連接，房主可以開始遊戲 (或者自動開始)
+        # 此處的邏輯是，前端連接後會發送 'start_game' 訊息
+        # 我們也可以在這裡檢查是否所有 turn_order 中的玩家都已連接 (都有 channel_name)
+        # 然後自動觸發遊戲開始，而不是等待前端的 'start_game'
         
-        # 廣播更新的遊戲狀態
-        if room:
-            await self.broadcast_game_state("玩家已連接")
-        
-        # 確保用戶ID加入活躍集合 
-        if self.user_id:
-            await self.add_user_id(self.user_id)
+        # 發送初始遊戲狀態給剛連接的玩家
+        await self.send_game_state_to_player(self.player_id, "成功加入遊戲房間！")
 
     async def disconnect(self, close_code):
         logger.info(f"GameConsumer: WebSocket斷開連接 - player_id: {self.player_id}, user_id: {getattr(self, 'user_id', None)}")
@@ -475,331 +486,280 @@ class GameConsumer(AsyncWebsocketConsumer):
             traceback.print_exc()
 
     async def handle_start_game(self):
-        """初始化遊戲並開始第一輪"""
+        """
+        (此方法被前端的 'start_game' 訊息觸發後的內部調用取代)
+        現在由 receive -> start_prompting_round 直接觸發
+        """
         room = game_rooms[self.room_group_name]
-        
-        # 設置遊戲基本參數
-        players_count = len(room['players'])
-            
-        # 確定玩家順序
-        room['turn_order'] = list(room['players'].keys())
-        random.shuffle(room['turn_order'])  # 隨機打亂順序
-        
-        # 初始化每個玩家的故事本
-        for player_id in room['turn_order']:
-            room['books'][player_id] = []
-        
-        # 設置遊戲輪數 (不添加機器人，使用實際玩家數量)
-        room['current_round'] = 0
-        room['total_rounds'] = players_count
-        
-        # 進入提示輸入階段
-        await self.start_prompting_round()
-        
-        return True
+        if room['state'] == 'initializing': # 確保只初始化一次
+            # 可選：打亂玩家順序
+            # random.shuffle(room['turn_order'])
+            # print(f"Turn order for room {self.room_name}: {room['turn_order']}")
+            await self.start_prompting_round()
 
     async def start_prompting_round(self):
         """開始提示輸入階段"""
         room = game_rooms[self.room_group_name]
+        if room['state'] != 'initializing':
+            return # 防止重複開始
+
         room['state'] = 'prompting'
-        room['assignments'] = {}  # 清空上一輪的任務
+        room['current_op_number'] = 0 # 題目階段是操作0
+        room['current_display_round'] = 0 # 題目階段顯示為回合0或不顯示回合
+        room['assignments'] = {player_id: {'type': 'prompt'} for player_id in room['turn_order']}
         
-        print(f"開始提示輸入階段")
+        print(f"Room {self.room_name}: Starting prompting round.")
+        await self.broadcast_game_state("請所有玩家提交一個有趣的題目！")
         
-        # 為每個玩家分配提示輸入任務
+        # 可以為每個玩家單獨發送 assign_prompt 指令，如果需要的話
         for player_id in room['turn_order']:
-            room['assignments'][player_id] = {'type': 'prompt'}
-            
-            # 單獨發送提示請求給指定玩家
-            await self.channel_layer.send(
-                player_id,
-                {
-                    'type': 'send_message',
-                    'message_type': 'request_prompt',
-                    'payload': {}
-                }
-            )
-        
-        # 廣播更新遊戲狀態
-        await self.broadcast_game_state("請每位玩家輸入一個有趣的題目或短語作為開始！")
+            if room['players'][player_id].get('channel_name'):
+                await self.channel_layer.send(
+                    room['players'][player_id]['channel_name'],
+                    {
+                        'type': 'send_message', # GameConsumer 方法
+                        'message_type': 'assign_prompt', # 前端識別的類型
+                        'payload': {} 
+                    }
+                )
 
     async def handle_submit_prompt(self, prompt_text):
-        """處理玩家提交的題目"""
         room = game_rooms[self.room_group_name]
-        
-        if room['state'] != 'prompting' or self.player_id not in room['assignments']:
-            await self.send_message('error', {'message': '現在不是提交題目的時間或您已經提交過題目'})
+
+        if room['state'] != 'prompting':
+            await self.send_error("現在不是提交題目的階段。")
             return
-        
-        # 從待處理任務中移除此玩家
+        if self.player_id not in room['assignments'] or room['assignments'][self.player_id]['type'] != 'prompt':
+            await self.send_error("您沒有被分配提交題目或已提交。")
+            return
+        if not prompt_text or len(prompt_text.strip()) == 0:
+            await self.send_error("題目不能為空。")
+            return
+
         room['assignments'].pop(self.player_id)
-        
-        # 將題目添加到該玩家的書本中
         room['books'][self.player_id].append({
             'type': 'prompt',
             'data': prompt_text,
-            'player': self.player_id,
-            'round': 0
+            'player': self.player_id, # 題目由自己提出
+            'round': 0 # 初始題目定義為 round 0
         })
-        
-        # 發送確認消息
-        await self.send_message('notification', {
-            'message': '您的題目已提交！',
-            'level': 'success'
-        })
-        
-        # 檢查是否所有玩家都已提交題目
-        if not room['assignments']:
-            print(f"所有題目已提交，開始第一輪繪畫階段...")
-            await self.start_drawing_round()
+        print(f"Player {self.player_id} submitted prompt: {prompt_text}")
+
+        await self.send_notification('您的題目已提交！', 'success')
+
+        if not room['assignments']: # 所有人都提交完畢
+            print(f"Room {self.room_name}: All prompts submitted. Starting first operation.")
+            await self.start_next_operation()
         else:
-            # 更新等待狀態
             await self.broadcast_game_state(f"等待其他 {len(room['assignments'])} 位玩家提交題目...")
 
-    async def start_drawing_round(self):
-        """開始一輪繪畫階段"""
+    async def start_next_operation(self):
         room = game_rooms[self.room_group_name]
-        room['state'] = 'drawing'
-        room['current_round'] += 1
-        room['assignments'] = {}  # 清空上一輪的任務
-
+        room['current_op_number'] += 1
+        op_num = room['current_op_number']
+        
         num_players = len(room['turn_order'])
-        
-        print(f"開始繪畫階段 - 回合 {room['current_round']}")
 
-        # 為每位玩家分配繪畫任務
+        if op_num > room['total_ops']:
+            print(f"Room {self.room_name}: All operations completed. Finishing game.")
+            await self.finish_game()
+            return
+
+        is_drawing_op = (op_num % 2 == 1)
+        room['current_display_round'] = math.ceil(op_num / 2.0)
+        
+        current_assignments = {}
+        action_type = 'draw' if is_drawing_op else 'guess'
+        next_state = 'drawing' if is_drawing_op else 'guessing'
+        room['state'] = next_state
+
+        print(f"Room {self.room_name}: Starting Op# {op_num} (Display Round {room['current_display_round']}) - Type: {next_state}")
+
         for i, current_player_id in enumerate(room['turn_order']):
-            # 計算要畫哪個玩家的故事本 (輪轉)
-            # 玩家 i 畫玩家 (i+當前回合)%玩家數 的故事本中最後一個元素
-            target_book_index = (i + room['current_round']) % num_players
-            original_player_id = room['turn_order'][target_book_index]
-            book = room['books'][original_player_id]
+            # 玩家 current_player_id (索引 i) 操作的書本是來自 (i - op_num) 的玩家
+            book_owner_index = (i - op_num % num_players + num_players) % num_players
+            original_book_owner_id = room['turn_order'][book_owner_index]
+            
+            book_content = room['books'][original_book_owner_id]
+            if not book_content:
+                print(f"Error: Book for {original_book_owner_id} is empty for Op# {op_num} by {current_player_id}!")
+                # This should not happen if prompting was successful
+                continue 
+            
+            item_to_process = book_content[-1] # Get the last item (prompt, drawing, or guess)
 
-            if not book:
-                print(f"錯誤: 玩家 {original_player_id} 的故事本為空!")
-                continue
-
-            # 獲取需要繪畫的內容 (上一步的題目或猜測)
-            item_to_draw = book[-1]
-            if item_to_draw['type'] not in ['prompt', 'guess']:
-                print(f"錯誤: 需要題目或猜測作為繪畫依據，但收到了 {item_to_draw['type']} (來自故事本 {original_player_id})")
-                continue
-
-            # 創建繪畫任務
-            task_data = {
-                'type': 'draw',
-                'prompt_or_guess': item_to_draw['data'],
-                'original_player_id': original_player_id  # 追蹤這個繪畫屬於哪個故事本
+            task_payload = {
+                'original_player_id': original_book_owner_id,
+                'ui_round': room['current_display_round']
             }
-            room['assignments'][current_player_id] = task_data  # 儲存分配給玩家的任務
+            client_message_payload = {
+                'original_player': original_book_owner_id, # For client display
+                'round': room['current_display_round']
+            }
 
-            # 單獨發送繪畫請求給指定玩家
-            await self.channel_layer.send(
-                current_player_id,
-                {
-                    'type': 'send_message',
-                    'message_type': 'request_drawing',
-                    'payload': {
-                        'prompt_or_guess': item_to_draw['data'],
-                        'original_player': original_player_id,
-                        'round': room['current_round']
+            if is_drawing_op:
+                if item_to_process['type'] not in ['prompt', 'guess']:
+                    print(f"Error: Expected prompt or guess for drawing, got {item_to_process['type']}")
+                    continue
+                task_payload['type'] = 'draw'
+                task_payload['prompt_or_guess'] = item_to_process['data']
+                client_message_payload['prompt_or_guess'] = item_to_process['data']
+                client_message_type = 'request_drawing'
+            else: # Guessing Op
+                if item_to_process['type'] != 'drawing':
+                    print(f"Error: Expected drawing for guessing, got {item_to_process['type']}")
+                    continue
+                task_payload['type'] = 'guess'
+                task_payload['drawing_data'] = item_to_process['data']
+                client_message_payload['drawing_data'] = item_to_process['data']
+                client_message_type = 'request_guess'
+
+            current_assignments[current_player_id] = task_payload
+            
+            if room['players'][current_player_id].get('channel_name'):
+                await self.channel_layer.send(
+                    room['players'][current_player_id]['channel_name'],
+                    {
+                        'type': 'send_message',
+                        'message_type': client_message_type,
+                        'payload': client_message_payload
                     }
-                }
-            )
-        
-        # 廣播更新遊戲狀態
-        await self.broadcast_game_state("繪畫階段開始！請根據分配給您的題目進行創意繪畫。")
+                )
+            print(f"Assigned task to {current_player_id}: {task_payload['type']} for book {original_book_owner_id} (Op# {op_num})")
 
-    async def handle_submit_drawing(self, drawing_data):
-        """處理玩家提交的繪畫"""
+        room['assignments'] = current_assignments
+        await self.broadcast_game_state(f"第 {room['current_display_round']} 回合 - {'請開始繪畫' if is_drawing_op else '請開始猜測'}！")
+
+    async def handle_submit_drawing(self, drawing_data_url):
         room = game_rooms[self.room_group_name]
 
-        if room['state'] != 'drawing' or self.player_id not in room['assignments']:
-            await self.send_message('error', {'message': '現在不是繪畫階段或您已經提交過繪畫'})
+        if room['state'] != 'drawing':
+            await self.send_error("現在不是繪畫階段。")
             return
-        
-        # 獲取並移除已完成的任務
+        if self.player_id not in room['assignments'] or room['assignments'][self.player_id]['type'] != 'draw':
+            await self.send_error("您沒有被分配繪畫任務或已提交。")
+            return
+        if not drawing_data_url:
+            await self.send_error("繪畫數據不能為空。")
+            return
+
         task = room['assignments'].pop(self.player_id)
         original_player_id = task['original_player_id']
+        ui_round = task['ui_round']
 
-        # 將繪畫加入對應的故事本
         room['books'][original_player_id].append({
-            'type': 'drawing', 
-            'data': drawing_data, 
-            'player': self.player_id,
-            'round': room['current_round']
+            'type': 'drawing',
+            'data': drawing_data_url,
+            'player': self.player_id, # Who drew it
+            'round': ui_round
         })
-        print(f"玩家 {self.player_id} 為故事本 {original_player_id} 提交了繪畫")
+        print(f"Player {self.player_id} submitted drawing for book {original_player_id} (UI Round {ui_round})")
+        await self.send_notification('您的繪畫已提交！', 'success')
 
-        # 發送確認消息
-        await self.send_message('notification', {
-            'message': '您的繪畫已提交！',
-            'level': 'success'
-        })
-
-        # 檢查是否所有繪畫都已提交
-        if not room['assignments']:
-            print(f"回合 {room['current_round']} 的所有繪畫已提交，進入猜測階段")
-            await self.start_guessing_round()
+        if not room['assignments']: # All drawings for this op_num submitted
+            print(f"Room {self.room_name}: All drawings for Op# {room['current_op_number']} submitted.")
+            await self.start_next_operation()
         else:
-            # 更新等待狀態
             await self.broadcast_game_state(f"等待其他 {len(room['assignments'])} 位玩家完成繪畫...")
 
-    async def start_guessing_round(self):
-        """開始一輪猜測階段"""
-        room = game_rooms[self.room_group_name]
-        room['state'] = 'guessing'
-        room['assignments'] = {}  # 清空上一輪的任務
-
-        num_players = len(room['turn_order'])
-        
-        print(f"開始猜測階段 - 回合 {room['current_round']}")
-
-        # 為每位玩家分配猜測任務
-        for i, current_player_id in enumerate(room['turn_order']):
-            # 計算要猜測哪個玩家的故事本
-            # 玩家 i 猜測玩家 (i+當前回合)%玩家數 的故事本中的最新繪畫
-            target_book_index = (i + room['current_round']) % num_players
-            original_player_id = room['turn_order'][target_book_index]
-            book = room['books'][original_player_id]
-
-            if not book:
-                print(f"錯誤: 玩家 {original_player_id} 的故事本為空!")
-                continue
-
-            # 獲取需要猜測的繪畫 (最新的元素)
-            item_to_guess = book[-1]
-            if item_to_guess['type'] != 'drawing':
-                print(f"錯誤: 需要繪畫作為猜測對象，但收到了 {item_to_guess['type']} (來自故事本 {original_player_id})")
-                continue
-
-            # 創建猜測任務
-            task_data = {
-                'type': 'guess',
-                'drawing_data': item_to_guess['data'],
-                'original_player_id': original_player_id  # 追蹤這個猜測屬於哪個故事本
-            }
-            room['assignments'][current_player_id] = task_data
-
-            # 單獨發送猜測請求給指定玩家
-            await self.channel_layer.send(
-                current_player_id,
-                {
-                    'type': 'send_message',
-                    'message_type': 'request_guess',
-                    'payload': {
-                        'drawing_data': item_to_guess['data'],
-                        'original_player': original_player_id,
-                        'round': room['current_round']
-                    }
-                }
-            )
-        
-        # 廣播更新遊戲狀態
-        await self.broadcast_game_state("猜測階段開始！請猜猜看您看到的繪畫代表什麼？")
-
     async def handle_submit_guess(self, guess_text):
-        """處理玩家提交的猜測"""
         room = game_rooms[self.room_group_name]
 
-        if room['state'] != 'guessing' or self.player_id not in room['assignments']:
-            await self.send_message('error', {'message': '現在不是猜測階段或您已經提交過猜測'})
+        if room['state'] != 'guessing':
+            await self.send_error("現在不是猜測階段。")
             return
-        
-        # 獲取並移除已完成的任務
+        if self.player_id not in room['assignments'] or room['assignments'][self.player_id]['type'] != 'guess':
+            await self.send_error("您沒有被分配猜測任務或已提交。")
+            return
+        if not guess_text or len(guess_text.strip()) == 0:
+            await self.send_error("猜測內容不能為空。")
+            return
+            
         task = room['assignments'].pop(self.player_id)
         original_player_id = task['original_player_id']
+        ui_round = task['ui_round']
 
-        # 將猜測加入對應的故事本
         room['books'][original_player_id].append({
-            'type': 'guess', 
-            'data': guess_text, 
-            'player': self.player_id,
-            'round': room['current_round']
+            'type': 'guess',
+            'data': guess_text,
+            'player': self.player_id, # Who guessed it
+            'round': ui_round
         })
-        print(f"玩家 {self.player_id} 為故事本 {original_player_id} 提交了猜測")
+        print(f"Player {self.player_id} submitted guess for book {original_player_id} (UI Round {ui_round})")
+        await self.send_notification('您的猜測已提交！', 'success')
 
-        # 發送確認消息
-        await self.send_message('notification', {
-            'message': '您的猜測已提交！',
-            'level': 'success'
-        })
-
-        # 檢查是否所有猜測都已提交
-        if not room['assignments']:
-            # 檢查是否達到遊戲結束條件
-            num_players = len(room['turn_order'])
-            if room['current_round'] >= num_players - 1:
-                # 遊戲結束
-                await self.finish_game()
-            else:
-                # 進入下一輪繪畫階段
-                print(f"回合 {room['current_round']} 的所有猜測已提交，進入下一輪繪畫")
-                await self.start_drawing_round()
+        if not room['assignments']: # All guesses for this op_num submitted
+            print(f"Room {self.room_name}: All guesses for Op# {room['current_op_number']} submitted.")
+            await self.start_next_operation()
         else:
-            # 更新等待狀態
             await self.broadcast_game_state(f"等待其他 {len(room['assignments'])} 位玩家完成猜測...")
 
     async def finish_game(self):
-        """結束遊戲並展示結果"""
         room = game_rooms[self.room_group_name]
         room['state'] = 'finished'
-        
-        # 確保每個故事本的完整性
-        for player_id, book in room['books'].items():
-            player_name = room['players'][player_id]['name']
-            book_length = len(book)
-            expected_length = len(room['turn_order'])
-            
-            print(f"玩家 {player_name} 的故事本有 {book_length} 個項目，期望有 {expected_length} 個")
-            
-            # 檢查故事本是否完整 (每個故事本應該有N個項目，包含1個題目、(N-1)/2個繪畫和(N-1)/2個猜測)
-            if book_length != expected_length:
-                print(f"警告: 玩家 {player_name} 的故事本不完整")
+        print(f"Room {self.room_name}: Game finished. Broadcasting results.")
 
-        # 發送遊戲結束消息，包含所有故事本數據
-        result_payload = {
-            'players': room['players'],
-            'books': room['books'],
-            'turn_order': room['turn_order']
+        # Prepare payload for game_over
+        # Ensure player names are included for display
+        players_info_for_results = {
+            pid: {'name': pdata.get('name', pid), 'isBot': pdata.get('isBot', False)}
+            for pid, pdata in room['players'].items()
         }
 
+        game_over_payload = {
+            'books': room['books'],
+            'players': players_info_for_results, # Send simplified player info
+            'turn_order': room['turn_order'] # To display books in a consistent order
+        }
+        
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'send_message',
-                'message_type': 'game_over',
-                'payload': result_payload
+                'type': 'broadcast_message', # Goes to broadcast_message handler
+                'message_type': 'game_over', # Client-side type
+                'payload': game_over_payload
             }
         )
+        # Optionally, clean up the game room from game_rooms after a delay or mark as finished
+        # For now, keep it for potential review, or until all players disconnect
 
-        await self.broadcast_game_state("遊戲結束！請查看每本故事的演變過程。")
-        print("遊戲結束，已發送結果")
+    def prepare_game_state_payload(self, status_message=""):
+        room = game_rooms.get(self.room_group_name)
+        if not room:
+            return {}
+
+        # Ensure players data is serializable and doesn't expose sensitive info like channel_name
+        players_public_info = {}
+        for pid, pdata in room.get('players', {}).items():
+            players_public_info[pid] = {
+                'name': pdata.get('name', pid),
+                'isBot': pdata.get('isBot', False),
+                'connected': 'channel_name' in pdata # Basic connected status
+            }
+            
+        return {
+            'state': room['state'],
+            'players': players_public_info, # Use public info
+            'current_op_number': room.get('current_op_number', 0), # For debugging or advanced client logic
+            'current_display_round': room.get('current_display_round', 0),
+            'total_display_rounds': room.get('total_display_rounds', 0),
+            'status_message': status_message,
+            'waiting_on': list(room.get('assignments', {}).keys()),
+            'turn_order': room.get('turn_order', [])
+        }
 
     async def broadcast_game_state(self, status_message=""):
-        """向房間內所有玩家廣播當前的遊戲狀態"""
         room = game_rooms.get(self.room_group_name)
         if not room:
             return
 
-        # 準備要廣播的狀態資訊
-        state_payload = {
-            'state': room['state'],
-            'players': room['players'],
-            'current_round': room['current_round'],
-            'status_message': status_message,
-            # 只提供誰還沒完成的信息，不包含任務內容
-            'waiting_on': list(room.get('assignments', {}).keys()),
-            'turn_order': room.get('turn_order', []),
-            # 新增總輪數信息
-            'total_rounds': len(room.get('turn_order', [])) - 1 if room.get('turn_order') else 0
-        }
-
+        state_payload = self.prepare_game_state_payload(status_message)
+        
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'send_message',
-                'message_type': 'game_state_update',
+                'type': 'broadcast_message', # Goes to broadcast_message handler
+                'message_type': 'game_state_update', # Client-side type
                 'payload': state_payload
             }
         )
@@ -816,185 +776,90 @@ class GameConsumer(AsyncWebsocketConsumer):
              }
          )
 
-    async def start_drawing_round(self):
-        room = game_rooms[self.room_group_name]
-        room['state'] = 'drawing'
-        room['current_round'] += 1
-        room['assignments'] = {} # 清空上一輪的任務
-
-        num_players = len(room['turn_order'])
-        current_assignments = {}
-
-        print(f"Starting drawing round {room['current_round']}")
-
-        for i, current_player_id in enumerate(room['turn_order']):
-            # 計算要畫哪個玩家的故事本 (輪轉)
-            # 第 1 輪 (round=1): 玩家 i 畫玩家 (i+1)%N 的題目
-            # 第 2 輪 (round=2): 玩家 i 畫玩家 (i+2)%N 的猜測 (來自玩家 (i+1)%N 的繪畫)
-            # ...
-            # 第 k 輪 (round=k): 玩家 i 畫玩家 (i+k)%N 的上一個元素
-            target_book_index = (i + room['current_round']) % num_players
-            original_player_id = room['turn_order'][target_book_index]
-            book = room['books'][original_player_id]
-
-            if not book:
-                print(f"Error: Book for {original_player_id} is empty!")
-                continue # 理論上不應發生
-
-            # 獲取需要繪畫的內容 (上一步的題目或猜測)
-            item_to_draw = book[-1]
-            if item_to_draw['type'] not in ['prompt', 'guess']:
-                 print(f"Error: Expected prompt or guess for drawing, got {item_to_draw['type']} for book {original_player_id}")
-                 # 可能需要更複雜的邏輯來處理錯誤或跳過
-                 continue
-
-            task_data = {
-                'type': 'draw',
-                'prompt_or_guess': item_to_draw['data'],
-                'original_player_id': original_player_id # 追蹤這個繪畫屬於哪個故事本
-            }
-            room['assignments'][current_player_id] = task_data # 儲存分配給玩家的任務
-
-            # 單獨發送繪畫請求給指定玩家
-            await self.channel_layer.send(
-                current_player_id,
-                {
-                    'type': 'send_message', # 需要一個 consumer 方法來處理這個類型
-                    'message_type': 'request_drawing',
-                    'payload': task_data
-                }
-            )
-            print(f"Assigned drawing task to {current_player_id}: Draw '{item_to_draw['data']}' from book {original_player_id}")
-
-
-        await self.broadcast_game_state(f"第 {room['current_round']} 輪 - 請開始繪畫！")
-
-    async def start_guessing_round(self):
-        room = game_rooms[self.room_group_name]
-        room['state'] = 'guessing'
-        # current_round 不需要增加，因為猜測是跟隨繪畫輪次的
-        room['assignments'] = {} # 清空上一輪的任務
-
-        num_players = len(room['turn_order'])
-        current_assignments = {}
-
-        print(f"Starting guessing round for drawing round {room['current_round']}")
-
-        for i, current_player_id in enumerate(room['turn_order']):
-            # 計算要猜哪個玩家的故事本 (輪轉)
-            # 玩家 i 猜測由玩家 (i-1)%N 根據玩家 (i+round-1)%N 的內容畫出的圖
-            # 也就是說，玩家 i 猜測玩家 (i + room['current_round']) % num_players 的故事本中的最新繪畫
-            target_book_index = (i + room['current_round']) % num_players
-            original_player_id = room['turn_order'][target_book_index]
-            book = room['books'][original_player_id]
-
-            if not book:
-                print(f"Error: Book for {original_player_id} is empty!")
-                continue
-
-            # 獲取需要猜測的繪畫 (最新的元素)
-            item_to_guess = book[-1]
-            if item_to_guess['type'] != 'drawing':
-                print(f"Error: Expected drawing for guessing, got {item_to_guess['type']} for book {original_player_id}")
-                continue
-
-            task_data = {
-                'type': 'guess',
-                'drawing_data': item_to_guess['data'],
-                'original_player_id': original_player_id
-            }
-            room['assignments'][current_player_id] = task_data
-
-            # 單獨發送猜測請求給指定玩家
-            await self.channel_layer.send(
-                current_player_id,
-                {
-                    'type': 'send_message',
-                    'message_type': 'request_guess',
-                    'payload': task_data
-                }
-            )
-            print(f"Assigned guessing task to {current_player_id}: Guess drawing from book {original_player_id}")
-
-
-        await self.broadcast_game_state(f"第 {room['current_round']} 輪 - 請根據繪畫猜測！")
-
-    async def finish_game(self):
-        room = game_rooms[self.room_group_name]
-        room['state'] = 'finished'
-        print(f"Game finished in room {self.room_group_name}")
-
-        # 向所有玩家廣播最終結果
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'broadcast_message',
-                'message_type': 'game_over',
-                'payload': {
-                    'books': room['books'],
-                    'players': room['players'], # 包含玩家名稱等資訊
-                    'turn_order': room['turn_order']
-                 }
-            }
-        )
-        await self.broadcast_game_state("遊戲結束！查看結果。")
-        # 可以考慮一段時間後重置房間狀態回 waiting
-
-    async def broadcast_game_state(self, status_message=""):
-        """向房間內所有玩家廣播當前的遊戲狀態"""
+    async def send_game_state_to_player(self, player_id, status_message=""):
         room = game_rooms.get(self.room_group_name)
         if not room:
             return
 
-        # 準備要廣播的狀態資訊 (移除敏感或過大的資料)
-        state_payload = {
-            'state': room['state'],
-            'players': room['players'],
-            'current_round': room['current_round'],
-            'status_message': status_message,
-            # 可以選擇性加入 assignments 的 key (誰還沒完成) 但不含內容
-            'waiting_on': list(room.get('assignments', {}).keys()),
-            'turn_order': room.get('turn_order', [])
-        }
+        state_payload = self.prepare_game_state_payload(status_message)
+        state_payload['your_player_id'] = player_id # 讓客戶端知道自己的ID
 
+        await self.send(text_data=json.dumps({
+            'type': 'game_state_update',
+            'payload': state_payload
+        }))
+
+    async def send_error(self, message):
+        await self.send(text_data=json.dumps({
+            'type': 'error',
+            'payload': {'message': message}
+        }))
+
+    async def send_notification(self, message, level='info'):
+        await self.send(text_data=json.dumps({
+            'type': 'notification', # Client-side type for displaying notifications
+            'payload': {'message': message, 'level': level}
+        }))
+
+    async def send_personal_message(self, event):
+        """Handles sending a personal message to this specific client."""
+        message_type = event['message_type']
+        payload = event.get('payload', {})
+        
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'payload': payload
+        }))
+
+    async def broadcast_message(self, event):
+        """
+        Handles messages sent to the group. It forwards them to all clients in the group.
+        This method is called by channel_layer.group_send(... {'type': 'broadcast_message'})
+        """
+        message_type = event['message_type']
+        payload = event.get('payload', {})
+
+        # If this message is a game_state_update, ensure 'your_player_id' is set for each client
+        if message_type == 'game_state_update':
+            # The payload from broadcast_game_state is already prepared.
+            # We need to add 'your_player_id' for the specific recipient.
+            # This is tricky because broadcast_message is generic.
+            # A better way: send_game_state_to_player for individual updates if needed,
+            # or client infers its ID from initial connection or a separate message.
+            # For now, client should know its ID.
+            pass # Payload is already good from prepare_game_state_payload
+
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'payload': payload
+        }))
+
+    async def handle_clear_canvas_broadcast(self):
+        """Handles a request to clear canvas for all players (e.g., if a round restarts or error)."""
+        room = game_rooms.get(self.room_group_name)
+        if not room: return
+
+        # This is a broadcast to all players in the group
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'broadcast_message',
-                'message_type': 'game_state_update',
-                'payload': state_payload
+                'message_type': 'clear_canvas_instruction', # Client-side type
+                'payload': {} 
             }
         )
-
-    async def broadcast_message(self, event):
-        """處理來自 group_send 的廣播請求"""
-        message_type = event['message_type']
-        payload = event['payload']
-        sender_channel = event.get('sender_channel') # 獲取發送者 channel
-
-        # 如果是清除畫布指令，且當前接收者不是發送者，才發送
-        if message_type == 'clear_canvas_instruction':
-            if self.channel_name != sender_channel:
-                 await self.send(text_data=json.dumps({
-                     'type': message_type,
-                     'payload': payload
-                 }))
-        else:
-            # 其他廣播訊息正常發送給所有 group 成員
-            # (包括 game_state_update, request_prompt, game_over 等)
-            # Removed 'chat' from the comment as it's no longer handled here for game_room
-             await self.send(text_data=json.dumps({
-                 'type': message_type,
-                 'payload': payload
-             }))
+        print(f"Broadcast clear canvas instruction to room {self.room_name}")
 
     async def send_message(self, event):
-        """處理來自 channel_layer.send 的單獨發送請求"""
+        """
+        This method is the target for channel_layer.send when the type is 'send_message'.
+        It directly sends the message to the WebSocket.
+        """
         message_type = event['message_type']
-        payload = event['payload']
+        payload = event.get('payload', {})
         await self.send(text_data=json.dumps({
             'type': message_type,
-            'payload': payload
+            'payload': payload,
         }))
 
     @sync_to_async

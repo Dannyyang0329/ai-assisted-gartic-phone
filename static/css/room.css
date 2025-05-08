@@ -104,6 +104,7 @@ body.room-page {
     max-width: 1800px; /* Increased max-width for larger screens and drawing area */
     margin: 1rem auto; /* Add some top/bottom margin */
     flex-grow: 1; /* Allow container to grow */
+    align-items: stretch; /* <--- 新增此行，確保子元素垂直拉伸 */
 }
 
 /* 側邊欄樣式 */
@@ -113,6 +114,7 @@ body.room-page {
     display: flex;
     flex-direction: column;
     gap: 1.5rem; /* Reduced gap */
+    min-height: 0; /* <--- 新增此行 */
 }
 
 .card {
@@ -162,6 +164,7 @@ body.room-page {
     background-color: #f5f5f5;
     padding: 0.2rem 0.6rem;
     border-radius: 100px;
+    margin: 0 0.5rem;
 }
 
 .player-list-container {
@@ -270,7 +273,7 @@ body.room-page {
     flex-direction: column;
     align-items: stretch; /* Make children stretch */
     gap: 1.5rem; /* Add gap between status bar and game area */
-    min-width: 0; /* Allow shrinking */
+    min-height: 0; /* <--- 新增此行 */
 }
 
 .status-bar {

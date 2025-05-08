@@ -80,9 +80,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     gameSocket.onopen = function(e) {
         console.log('WebSocket connection established');
-        // 自動開始遊戲或等待伺服器指令
-        sendMessage('start_game'); // 假設這是觸發遊戲開始的訊息
-        showStatusMessage('正在啟動遊戲...', 'info'); 
+        // Client is ready, will wait for game_state_update or specific assignments.
+        // If client is reconnecting, server might send current state.
+        // For new game, client sends 'start_game' which host (or first player) triggers.
+        // This 'start_game' message is a signal for the server that this client is ready
+        // and if it's the host, it might trigger the actual game logic start.
+        // The actual game start (prompting) is triggered by the host or server logic.
+        sendMessage('start_game'); // Signal readiness and intent to start/join game flow
+        showStatusMessage('正在連接到遊戲...', 'info'); 
     };
     
     gameSocket.onclose = function(e) {
@@ -104,23 +109,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (messageType) {
             case 'game_state_update':
-                myPlayerId = payload.your_player_id || myPlayerId; // 更新自己的玩家ID
+                myPlayerId = payload.your_player_id || myPlayerId; 
                 updateUI(payload);
                 break;
-            case 'assign_prompt':
+            case 'assign_prompt': // New: Server assigns task to submit a prompt
                 showPromptInput();
                 break;
-            case 'assign_drawing':
-                showDrawingArea(payload.prompt);
+            case 'request_drawing': // Existing: Server assigns task to draw
+                showDrawingArea(payload.prompt_or_guess, payload.round);
                 break;
-            case 'assign_guess':
-                showGuessInput(payload.drawing_url);
+            case 'request_guess': // Existing: Server assigns task to guess
+                showGuessInput(payload.drawing_data, payload.round);
                 break;
             case 'game_over':
                 showResults(payload);
                 break;
             case 'clear_canvas_instruction':
                 clearLocalCanvas();
+                break;
+            case 'notification': // Added for server-sent notifications
+                showStatusMessage(payload.message, payload.level || 'info');
                 break;
             case 'error':
                 showStatusMessage(`錯誤: ${payload.message}`, 'error');
@@ -133,41 +141,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- UI 更新函數 ---
     function updateUI(stateData) {
         currentGameState = stateData.state;
-        showStatusMessage(getGameStateText(currentGameState) + (stateData.status_message ? ` - ${stateData.status_message}` : ''), currentGameState);
-        updatePlayerList(stateData.players, stateData.waiting_on);
+        // Use a more specific status message if available, otherwise generate default
+        let statusMsg = stateData.status_message || getGameStateText(currentGameState);
+        if (stateData.state !== 'prompting' && stateData.state !== 'finished' && stateData.current_display_round > 0) {
+             statusMsg = `第 ${stateData.current_display_round} / ${stateData.total_display_rounds} 回合 - ${getGameStateText(currentGameState)}`;
+             if(stateData.status_message) statusMsg += ` (${stateData.status_message})`;
+        } else if (stateData.status_message) {
+            statusMsg = stateData.status_message;
+        }
+
+        showStatusMessage(statusMsg, currentGameState);
+        updatePlayerList(stateData.players, stateData.waiting_on, stateData.turn_order);
 
         // 更新回合指示器
         const currentRoundEl = document.getElementById('current-round');
         const totalRoundsEl = document.getElementById('total-rounds');
-        if (currentRoundEl && totalRoundsEl) {
-            currentRoundEl.textContent = stateData.current_round || 0;
-            totalRoundsEl.textContent = stateData.total_rounds || 0;
+        const roundIndicator = document.getElementById('round-indicator');
+
+        if (currentRoundEl && totalRoundsEl && roundIndicator) {
+            if (stateData.state === 'prompting' || stateData.state === 'finished' || stateData.total_display_rounds === 0) {
+                roundIndicator.classList.add('hidden');
+            } else {
+                currentRoundEl.textContent = stateData.current_display_round || 0;
+                totalRoundsEl.textContent = stateData.total_display_rounds || 0;
+                roundIndicator.classList.remove('hidden');
+            }
         }
         
-        // 顯示/隱藏回合指示器
-        const roundIndicator = document.getElementById('round-indicator');
-        if (stateData.state === 'finished' || stateData.total_rounds === 0) {
-            roundIndicator.classList.add('hidden');
-        } else {
-            roundIndicator.classList.remove('hidden');
-        }
-
         // 根據遊戲狀態啟用/禁用輸入
-        promptInput.disabled = stateData.state !== 'prompting';
-        submitPromptButton.disabled = stateData.state !== 'prompting';
-        // drawing controls are handled by showDrawingArea
-        guessInput.disabled = stateData.state !== 'guessing';
-        submitGuessButton.disabled = stateData.state !== 'guessing';
+        // Prompt input area is shown/hidden by showPromptInput()
+        // Drawing controls are handled by showDrawingArea()
+        // Guess input area is shown/hidden by showGuessInput()
 
-        // 如果是等待狀態，但不是明確的等待某人，則可能是等待伺服器分配任務
-        if (stateData.state === 'waiting' && (!stateData.waiting_on || stateData.waiting_on.length === 0)) {
-            // showStatusMessage('等待伺服器分配任務...', 'info');
+        if (stateData.state === 'prompting' && !submitPromptButton.disabled) {
+            // If it's prompting state and button is enabled, it means it's this player's turn to prompt
+            // (or server sent assign_prompt)
+        } else if (stateData.state !== 'prompting') {
+            promptInput.disabled = true;
+            submitPromptButton.disabled = true;
         }
+        // Other inputs (drawing, guess) are managed by their respective showXXX functions
     }
 
     function getGameStateText(state) {
         const texts = {
-            'waiting': '等待中...',
+            'initializing': '遊戲初始化中...',
             'prompting': '出題階段',
             'drawing': '繪畫階段',
             'guessing': '猜測階段',
@@ -194,18 +212,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function updatePlayerList(playersData, waitingOn) {
-        playerList.innerHTML = ''; // 清空現有列表
-        const playerIds = Object.keys(playersData);
+    function updatePlayerList(playersData, waitingOn, turnOrder) { 
+        playerList.innerHTML = ''; 
+        const playerIdsInOrder = turnOrder && turnOrder.length > 0 ? turnOrder : (playersData ? Object.keys(playersData) : []);
         
         if(playerCountDisplay) {
-            const totalPlayers = document.getElementById('player-total');
-            playerCountDisplay.textContent = playerIds.length;
-            if(totalPlayers) totalPlayers.textContent = playersData[playerIds[0]]?.game_config?.max_players || 8;
+            const totalPlayersEl = document.getElementById('player-total');
+            playerCountDisplay.textContent = playerIdsInOrder.length; // Active players in turn order
+            if (totalPlayersEl) {
+                totalPlayersEl.textContent = playerIdsInOrder.length; 
+            }
         }
 
-        for (const playerId of playerIds) {
-            const player = playersData[playerId];
+        for (const playerId of playerIdsInOrder) {
+            const player = playersData ? playersData[playerId] : null;
+            if (!player) continue; // 防禦性程式碼
+
             const li = document.createElement('li');
             li.className = 'player-item';
             
@@ -279,33 +301,38 @@ document.addEventListener('DOMContentLoaded', function() {
     function showPromptInput() {
         hideAllSections();
         promptInputArea.classList.remove('hidden');
+        promptInputArea.classList.add('fade-in-animation');
+        promptInput.disabled = false;
+        promptInput.value = '';
         promptInput.focus();
         submitPromptButton.disabled = false;
-        
-        // 添加動畫效果
-        promptInputArea.classList.add('fade-in-animation');
+        showStatusMessage('請輸入你的題目', 'info');
     }
 
-    function showDrawingArea(promptText) {
+    function showDrawingArea(promptText, round) { // round is display_round
         hideAllSections();
         drawingArea.classList.remove('hidden');
         drawingArea.classList.add('fade-in-animation');
         
-        resizeCanvas(); // 確保畫布尺寸正確
+        resizeCanvas(); 
         promptToDraw.textContent = promptText;
+        document.getElementById('prompt-to-draw').classList.remove('hidden'); // Make sure prompt is visible
         clearLocalCanvas(); 
         submitDrawingButton.disabled = false;
+        showStatusMessage(`第 ${round} 回合 - 請根據提示繪畫`, 'info');
     }
 
-    function showGuessInput(drawingDataUrl) {
+    function showGuessInput(drawingDataUrl, round) { // round is display_round
         hideAllSections();
         guessInputArea.classList.remove('hidden');
         guessInputArea.classList.add('fade-in-animation');
         
         imageToGuess.src = drawingDataUrl;
+        guessInput.disabled = false;
         guessInput.value = '';
         guessInput.focus();
         submitGuessButton.disabled = false;
+        showStatusMessage(`第 ${round} 回合 - 請猜測這幅畫作`, 'info');
     }
 
     function showResults(payload) {
@@ -313,35 +340,33 @@ document.addEventListener('DOMContentLoaded', function() {
         resultsArea.classList.remove('hidden');
         resultsArea.classList.add('fade-in-animation');
         
-        booksContainer.innerHTML = ''; // 清空舊結果
+        booksContainer.innerHTML = ''; 
         
-        payload.books.forEach((book, bookIndex) => {
+        // Use turn_order to display books consistently
+        const orderedPlayerIds = payload.turn_order || Object.keys(payload.books);
+
+        orderedPlayerIds.forEach((originalPlayerId, bookIndex) => {
+            const bookData = payload.books[originalPlayerId];
+            if (!bookData) return;
+
             const bookDiv = document.createElement('div');
             bookDiv.className = 'book';
             
             const bookTitle = document.createElement('h4');
-            // 假設第一項是初始題目，其作者是書本的發起者
-            const initiatorPlayerId = book.items[0]?.player;
-            const initiatorName = payload.players[initiatorPlayerId]?.name || `玩家 ${initiatorPlayerId?.substring(0,4) || '未知'}`;
+            const initiatorName = payload.players[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
             bookTitle.textContent = `${initiatorName} 的故事本 #${bookIndex + 1}`;
             bookDiv.appendChild(bookTitle);
 
-            // 添加進度線 (可選)
             const progressLine = document.createElement('div');
             progressLine.className = 'book-progress-line';
             bookDiv.appendChild(progressLine);
 
-            book.items.forEach((item, itemIndex) => {
+            bookData.forEach((item, itemIndex) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'book-item';
 
-                // 回合徽章 (可選)
-                // const roundBadge = document.createElement('div');
-                // roundBadge.className = 'book-round-badge';
-                // roundBadge.textContent = `回合 ${itemIndex + 1}`;
-                // itemDiv.appendChild(roundBadge);
-
-                const itemPlayerName = payload.players[item.player]?.name || `玩家 ${item.player.substring(0,4)}`;
+                const itemPlayerId = item.player;
+                const itemPlayerName = payload.players[itemPlayerId]?.name || `玩家 ${itemPlayerId.substring(0,4)}`;
 
                 const typeTag = document.createElement('div');
                 typeTag.className = 'book-item-tag';
@@ -349,10 +374,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'book-item-content';
 
+                // Display round number for drawing and guess
+                let roundText = "";
+                if (item.round > 0) { // round 0 is initial prompt
+                    roundText = ` (第 ${item.round} 回合)`;
+                }
+
                 if (item.type === 'prompt') {
                     typeTag.textContent = '題目';
                     typeTag.classList.add('tag-prompt');
-                    
                     const contentText = document.createElement('p');
                     contentText.innerHTML = `<strong>${itemPlayerName}</strong> 提出了題目：<br>"${item.data}"`;
                     contentDiv.appendChild(contentText);
@@ -361,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     typeTag.classList.add('tag-drawing');
                     
                     const contentText = document.createElement('p');
-                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了：`;
+                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了${roundText}：`;
                     contentDiv.appendChild(contentText);
                     
                     const img = document.createElement('img');
@@ -372,9 +402,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (item.type === 'guess') {
                     typeTag.textContent = '猜測';
                     typeTag.classList.add('tag-guess');
-                    
                     const contentText = document.createElement('p');
-                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是：<br>"${item.data}"`;
+                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是${roundText}：<br>"${item.data}"`;
                     contentDiv.appendChild(contentText);
                 }
                 
@@ -384,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             booksContainer.appendChild(bookDiv);
         });
+        showStatusMessage("遊戲結束！查看結果。", "finished");
     }
     
     // 分享結果功能 (保持與原HTML一致)
@@ -428,9 +458,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (promptText) {
             sendMessage('submit_prompt', { prompt: promptText });
             promptInput.value = '';
+            promptInput.disabled = true; // Disable after submitting
             submitPromptButton.disabled = true;
-            // 狀態由 game_state_update 更新
-            // showStatusMessage('題目已提交，等待其他玩家...', 'info'); 
+            showStatusMessage('題目已提交，等待其他玩家...', 'info'); 
         } else {
             showStatusMessage('請輸入題目！', 'error'); // 或者更友好的提示
         }
@@ -446,8 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const drawingDataUrl = drawingCanvasEl.toDataURL(); // 預設為 image/png
         sendMessage('submit_drawing', { drawing: drawingDataUrl });
         submitDrawingButton.disabled = true;
-        // 狀態由 game_state_update 更新
-        // showStatusMessage('繪畫已提交，等待其他玩家...', 'info'); 
+        showStatusMessage('繪畫已提交，等待其他玩家...', 'info'); 
     };
 
     submitGuessButton.onclick = function() {
@@ -456,8 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
             sendMessage('submit_guess', { guess: guessText });
             guessInput.value = '';
             submitGuessButton.disabled = true;
-            // 狀態由 game_state_update 更新
-            // showStatusMessage('猜測已提交，等待其他玩家...', 'info');
+            showStatusMessage('猜測已提交，等待其他玩家...', 'info');
         } else {
             showStatusMessage('請輸入你的猜測！', 'error');
         }
@@ -534,5 +562,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始隱藏所有遊戲階段區域
     hideAllSections();
-    showStatusMessage('正在連接伺服器...', 'connecting');
+    // Initial status message will be set by gameSocket.onopen or first game_state_update
+    // showStatusMessage('正在連接伺服器...', 'connecting'); 
 });
