@@ -411,12 +411,20 @@ body.room-page {
 }
 
 /* ------------- 7. 題目輸入區域 ------------- */
+#prompt-input-area .card-header {
+    position: relative;
+    text-align: center;
+    padding: 1.5rem 0 1rem;
+}
+
 #prompt-input-area .card-header h3 {
-    font-size: 1.8rem; /* 增大的字體大小 */
+    font-size: 2rem; /* 更大的字體大小 */
     font-weight: 700;
     margin: 0;
     position: relative;
     display: inline-block;
+    color: var(--primary);
+    text-shadow: 0 1px 2px rgba(93, 95, 239, 0.1);
 }
 
 #prompt-input-area .card-header h3::after {
@@ -425,37 +433,44 @@ body.room-page {
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 40px;
+    width: 60px; /* 更寬的底線 */
     height: 4px;
     background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
     border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(93, 95, 239, 0.15);
 }
 
 /* 創意圖形 */
 .idea-graphic-container {
     width: 100%;
     max-width: 350px;
-    margin: 0.5rem 0 1rem;
+    margin: 1rem auto 1.5rem;
     overflow: visible;
 }
 
 .idea-graphic {
     width: 100%;
     height: auto;
+    filter: drop-shadow(0 2px 5px rgba(93, 95, 239, 0.2));
 }
 
 .idea-graphic path {
-    animation: drawPath 3s ease-in-out infinite alternate;
+    animation: drawPath 4s ease-in-out infinite alternate;
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
 }
 
 .idea-graphic circle {
-    animation: pulse 3s ease-in-out infinite alternate;
+    animation: pulse 4s ease-in-out infinite alternate;
+    transform-origin: center;
 }
 
 /* 輸入容器 */
 .input-container {
     position: relative;
     width: 100%;
+    max-width: 550px;
+    margin: 0 auto;
 }
 
 .input-icon {
@@ -463,8 +478,39 @@ body.room-page {
     right: 15px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 22px;
+    font-size: 24px;
     pointer-events: none;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+#prompt-input-area #prompt-input:focus + .input-icon {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+}
+
+#prompt-input-area #prompt-input {
+    padding: 1.3rem 3.5rem 1.3rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border: 2px solid rgba(93, 95, 239, 0.2);
+    border-radius: 12px;
+    background-color: #f9faff;
+    box-shadow: 0 4px 10px rgba(93, 95, 239, 0.1);
+    transition: all 0.3s ease;
+}
+
+#prompt-input-area #prompt-input:focus {
+    background-color: #ffffff;
+    border-color: rgba(93, 95, 239, 0.4);
+    box-shadow: 0 6px 15px rgba(93, 95, 239, 0.15);
+    transform: translateY(-2px);
+}
+
+#prompt-input-area #prompt-input::placeholder {
+    color: #b4b5c8;
+    font-weight: normal;
+    font-style: italic;
 }
 
 /* ------------- 8. 繪圖區域 ------------- */
@@ -515,18 +561,19 @@ body.room-page {
     border-radius: var(--radius-sm);
     border: 1px solid #dee2e6;
     background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #color-picker {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     width: 38px;
     height: 38px;
     border: none;
     padding: 0;
     cursor: pointer;
+    border-radius: 4px;
 }
 
 .line-width-control {
@@ -732,16 +779,21 @@ body.room-page {
 }
 
 #prompt-input-area #prompt-input {
-    padding: 1.2rem 3.5rem 1.2rem 1.5rem;
+    padding: 1.3rem 3.5rem 1.3rem 1.5rem;
     font-size: 1.1rem;
     font-weight: 500;
-    border: none;
-    background-color: #f7f8ff;
+    border: 2px solid rgba(93, 95, 239, 0.2);
+    border-radius: 12px;
+    background-color: #f9faff;
+    box-shadow: 0 4px 10px rgba(93, 95, 239, 0.1);
+    transition: all 0.3s ease;
 }
 
 #prompt-input-area #prompt-input:focus {
     background-color: #ffffff;
-    outline: none;
+    border-color: rgba(93, 95, 239, 0.4);
+    box-shadow: 0 6px 15px rgba(93, 95, 239, 0.15);
+    transform: translateY(-2px);
 }
 
 #prompt-input-area #prompt-input::placeholder {
@@ -812,12 +864,14 @@ body.room-page {
 
 #prompt-input-area #submit-prompt-button {
     min-width: 220px;
-    padding: 1.1rem 1.8rem;
-    font-size: 1.1rem;
+    padding: 1.2rem 2rem;
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    border-radius: 16px;
+    border-radius: 12px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     box-shadow: 0 8px 20px rgba(93, 95, 239, 0.3);
+    transition: all 0.4s ease;
     overflow: hidden;
     position: relative;
     z-index: 1;
