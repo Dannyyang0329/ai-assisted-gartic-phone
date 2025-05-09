@@ -44,6 +44,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (roomInput) {
             roomInput.value = redirectRoom;
         }
+
+        // 自動淡出 redirect-notice
+        const redirectNotice = document.querySelector('.redirect-notice');
+        if (redirectNotice) {
+            setTimeout(() => {
+                redirectNotice.classList.add('fade-out');
+                // 動畫結束後移除元素，避免佔據空間
+                redirectNotice.addEventListener('animationend', () => {
+                    if (redirectNotice.parentNode) {
+                        redirectNotice.remove();
+                    }
+                });
+            }, 3000); // 3秒後淡出
+        }
         
         // 顯示提示，指示用戶需要輸入ID
         const userIdInput = document.querySelector('#user-id-input');
@@ -64,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 userIdStatus.className = 'userid-status visible';
                 userIdStatusText.textContent = '請輸入一個用戶ID以繼續';
             }
-        }
+        }    
     }
     
     // 處理錯誤消息

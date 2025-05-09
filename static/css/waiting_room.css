@@ -21,6 +21,7 @@
     z-index: 100;
     flex-shrink: 0; /* 防止導航欄被壓縮 */
     transition: all 0.3s ease;
+    margin: 0;
 }
 
 /* Logo 樣式保留 */

@@ -77,9 +77,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 1rem 0;
-    margin-bottom: 1rem; /* 添加導航欄底部間距 */
-    margin-top: 0.5rem; /* 向下移動導航欄 */
+    margin: 1.8rem 0 0.8rem;
 }
 
 .logo {
@@ -109,10 +107,8 @@ body {
 .main-content {
     display: flex;
     flex-direction: column;
-    flex: 1;
     justify-content: center;
     align-items: center;
-    margin-top: -5rem; /* 整體向上移動 */
 }
 
 /* 卡片 */
@@ -293,20 +289,17 @@ body {
 /* 介紹區塊樣式 */
 .intro-section {
     text-align: center;
-    margin-bottom: 2rem;
+    margin: 1rem;
     animation: fadeIn 1.2s 0.3s both;
-    margin-top: -1rem; /* 再向上移動一點 */
-    width: 100%;
-    max-width: 650px; /* 增加最大寬度 */
+    width: 60%;
 }
 
 .tagline {
     color: var(--dark);
     font-size: 1.8rem; /* 增加標題字體大小 */
-    max-width: 650px; /* 增加最大寬度，保持一致 */
     font-weight: 600; /* 加粗一點讓標題更醒目 */
     line-height: 1.5;
-    margin-bottom: 1rem;
+    margin: 1rem;
 }
 
 .tagline span {
@@ -329,16 +322,16 @@ body {
 .app-description {
     color: #666;
     font-size: 1.1rem; /* 增加描述文字字體大小 */
-    max-width: 600px; /* 增加最大寬度 */
-    margin: 0 auto 0.8rem; /* 微調下邊距 */
     line-height: 1.6; /* 增加行高提升可讀性 */
+    margin: 0 2rem;
+    font-weight: 500;
 }
 
 .feature-list {
     display: flex;
     justify-content: center;
     gap: 1.8rem; /* 增加圖標之間的間距 */
-    margin-top: 1.5rem; /* 增加與上方文字的間距 */
+    margin: 1rem; /* 增加與上方文字的間距 */
 }
 
 .feature-item {
@@ -351,7 +344,7 @@ body {
 .feature-icon {
     width: 28px; /* 增加圖標尺寸 */
     height: 28px; /* 增加圖標尺寸 */
-    margin-right: 10px; /* 增加圖標與文字間距 */
+    margin-right: 8px; /* 增加圖標與文字間距 */
     color: var(--secondary);
 }
 
@@ -376,6 +369,11 @@ body {
 @keyframes fadeOut {
     from { opacity: 1; }
     to { opacity: 0; }
+}
+
+/* 修改 fade-out class 的選擇器以增加特異性 */
+.redirect-notice.fade-out {
+    animation: fadeOut 0.5s forwards;
 }
 
 /* 用戶 ID 可用性檢查樣式 */
