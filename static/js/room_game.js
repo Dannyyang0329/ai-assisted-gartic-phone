@@ -622,6 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 context.strokeStyle = colorPicker.value; // Ensure color is set
                 context.lineWidth = lineWidth.value;
                 context.globalCompositeOperation = 'source-over';
+                updateLineWidthGradient(colorPicker.value); // 更新漸層顏色
                 break;
             case 'eraser':
                 if (eraserToolButton) eraserToolButton.classList.add('active');
@@ -678,9 +679,43 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update selected state for palette buttons
             paletteColorButtons.forEach(btn => btn.classList.remove('selected'));
             this.classList.add('selected');
+            
+            // 不需要手動調用 updateLineWidthGradient，因為已經觸發了 colorPicker 的 input 事件
         });
     });
 
+    // 新增一個函數來更新線寬控制器漸層顏色
+    function updateLineWidthGradient(color) {
+        // 從淺灰色到所選顏色的漸層
+        lineWidth.style.background = `linear-gradient(to right, #e0e0e0, ${color})`;
+    }
+
+    // 修改 colorPicker 事件監聽器
+    colorPicker.addEventListener('input', function() {
+        if (currentTool === 'pen' || currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            context.strokeStyle = this.value;
+        }
+        // For fill tool, color is read directly in floodFill.
+        // For eraser, strokeStyle is not used.
+
+        // Remove 'selected' class from all palette buttons when custom color picker is used
+        paletteColorButtons.forEach(btn => {
+            if (btn.dataset.color.toLowerCase() === this.value.toLowerCase()) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+        
+        // 更新線寬控制器的漸層顏色
+        updateLineWidthGradient(this.value);
+    });
+
+    // 在初始化時設置線寬控制器的漸層顏色
+    window.addEventListener('DOMContentLoaded', function() {
+        // 使用初始顏色值更新漸層
+        updateLineWidthGradient(colorPicker.value);
+    });
 
     // --- 事件監聽器 ---
     function sendMessage(type, payload = {}) {
@@ -757,6 +792,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.classList.remove('selected');
             }
         });
+        
+        // 更新線寬控制器的漸層顏色
+        updateLineWidthGradient(this.value);
     });
 
     // 繪圖事件
