@@ -13,15 +13,79 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.8rem 2rem;
-    background: rgba(255, 255, 255, 0.95);
+    background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.97) 0%,
+        rgba(240, 246, 255, 0.95) 25%,
+        rgba(235, 242, 255, 0.96) 50%,
+        rgba(230, 240, 255, 0.95) 75%,
+        rgba(225, 238, 255, 0.97) 100%
+    );
     border-bottom: 1px solid rgba(230, 230, 230, 0.7);
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
     backdrop-filter: blur(10px);
     position: relative;
     z-index: 100;
     flex-shrink: 0; /* 防止導航欄被壓縮 */
     transition: all 0.3s ease;
     margin: 0;
+    animation: gradientShift 6s ease infinite alternate;
+    background-size: 300% 300%;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 25%;
+        box-shadow: 0 2px 15px rgba(93, 95, 239, 0.1);
+        border-bottom: 1px solid rgba(93, 95, 239, 0.15);
+    }
+    25% {
+        background-position: 50% 50%;
+        box-shadow: 0 2px 15px rgba(78, 124, 246, 0.12);
+        border-bottom: 1px solid rgba(78, 124, 246, 0.16);
+    }
+    50% {
+        background-position: 100% 75%;
+        box-shadow: 0 2px 15px rgba(44, 204, 228, 0.15);
+        border-bottom: 1px solid rgba(44, 204, 228, 0.18);
+    }
+    75% {
+        background-position: 50% 100%;
+        box-shadow: 0 2px 15px rgba(78, 124, 246, 0.12);
+        border-bottom: 1px solid rgba(78, 124, 246, 0.16);
+    }
+    100% {
+        background-position: 0% 50%;
+        box-shadow: 0 2px 15px rgba(93, 95, 239, 0.1);
+        border-bottom: 1px solid rgba(93, 95, 239, 0.15);
+    }
+}
+
+/* 添加導航欄光影效果 */
+.navbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.2) 25%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        rgba(255, 255, 255, 0.2) 75%, 
+        transparent 100%
+    );
+    opacity: 0;
+    animation: navbarGlow 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes navbarGlow {
+    0% { opacity: 0; transform: translateX(-100%); }
+    10% { opacity: 0.7; }
+    50% { opacity: 0.5; transform: translateX(100%); }
+    100% { opacity: 0; transform: translateX(100%); }
 }
 
 /* Logo 樣式保留 */
@@ -89,6 +153,71 @@
     height: 16px;
 }
 
+/* 美化大廳按鈕 */
+.nav-actions .btn-home {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.92rem;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, rgba(93, 95, 239, 0.05) 0%, rgba(44, 204, 228, 0.08) 100%);
+    border: 1px solid rgba(93, 95, 239, 0.15);
+    color: var(--primary);
+    box-shadow: 0 2px 5px rgba(93, 95, 239, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-actions .btn-home:hover {
+    border-color: rgba(93, 95, 239, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(93, 95, 239, 0.15);
+    background: linear-gradient(135deg, rgba(93, 95, 239, 0.09) 0%, rgba(44, 204, 228, 0.12) 100%);
+}
+
+.nav-actions .btn-home:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(93, 95, 239, 0.1);
+}
+
+.nav-actions .btn-home .nav-icon {
+    width: 18px;
+    height: 18px;
+    stroke: var(--primary);
+    stroke-width: 2.2;
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 1px 1px rgba(93, 95, 239, 0.2));
+}
+
+.nav-actions .btn-home:hover .nav-icon {
+    transform: scale(1.1);
+}
+
+.nav-actions .btn-home span {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    position: relative;
+}
+
+.nav-actions .btn-home span::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--primary);
+    transition: width 0.3s ease;
+    opacity: 0.7;
+}
+
+.nav-actions .btn-home:hover span::after {
+    width: 100%;
+}
+
 /* 在小螢幕上調整導航欄 */
 @media (max-width: 768px) {
     .navbar {
@@ -110,6 +239,15 @@
     
     .nav-actions button {
         padding: 0.5rem;
+    }
+
+    .nav-actions .btn-home {
+        padding: 0.5rem 0.8rem;
+    }
+    
+    .nav-actions .btn-home .nav-icon {
+        width: 20px;
+        height: 20px;
     }
 }
 
@@ -537,6 +675,191 @@
     cursor: not-allowed;
     background: #97e6d0;
     box-shadow: none;
+}
+
+/* 響應式調整 - 確保在小螢幕上也能好看 */
+@media (max-width: 768px) {
+    #add-bot, #remove-bot {
+        padding-left: 1.8rem;
+    }
+    
+    #add-bot:before, #remove-bot:before {
+        left: 0.6rem;
+        font-size: 1rem;
+    }
+    
+    #start-game-button {
+        padding: 0.7rem 1rem;
+        font-size: 1rem;
+    }
+    
+    #start-game-button:hover:not(:disabled) {
+        padding-right: 2.2rem;
+    }
+    
+    #start-game-button:after {
+        right: 1.2rem;
+    }
+}
+
+/* 機器人按鈕美化 */
+#add-bot {
+    background: linear-gradient(135deg, #f8f9ff 0%, #eef1ff 100%);
+    color: var(--primary);
+    border: 1px solid rgba(93, 95, 239, 0.2);
+    box-shadow: 0 4px 10px rgba(93, 95, 239, 0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding-left: 2.2rem; /* 為左側圖標留出空間 */
+}
+
+#add-bot:before {
+    content: '🤖';
+    position: absolute;
+    left: 0.8rem;
+    font-size: 1.2rem;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+#add-bot:hover:not(:disabled) {
+    background: linear-gradient(135deg, #eef1ff 0%, #e7eaff 100%);
+    border-color: rgba(93, 95, 239, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(93, 95, 239, 0.15);
+}
+
+#add-bot:hover:not(:disabled):before {
+    transform: rotate(15deg) scale(1.2);
+    opacity: 1;
+}
+
+#add-bot:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(93, 95, 239, 0.1);
+}
+
+/* 移除機器人按鈕 */
+#remove-bot {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+    color: #e53e3e;
+    border: 1px solid rgba(229, 62, 62, 0.25);
+    box-shadow: 0 4px 10px rgba(229, 62, 62, 0.08);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding-left: 2.2rem; /* 為左側圖標留出空間 */
+}
+
+#remove-bot:before {
+    content: '❌';
+    position: absolute;
+    left: 0.8rem;
+    font-size: 1rem;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+#remove-bot:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ffe0e0 0%, #ffd0d0 100%);
+    border-color: rgba(229, 62, 62, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(229, 62, 62, 0.15);
+    color: #dc2626;
+}
+
+#remove-bot:hover:not(:disabled):before {
+    transform: scale(1.2);
+    opacity: 1;
+}
+
+#remove-bot:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(229, 62, 62, 0.1);
+}
+
+#remove-bot:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f8f8f8;
+    border-color: #eaeaea;
+    box-shadow: none;
+    color: #aaa;
+}
+
+/* 開始遊戲按鈕 */
+#start-game-button {
+    background: linear-gradient(135deg, var(--success) 0%, #03d48f 100%);
+    margin: 0.8rem 1.2rem 1rem;
+    padding: 0.85rem 1.2rem;
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 6px 18px rgba(6, 214, 160, 0.25), 
+                inset 0 -2px 0 rgba(0,0,0,0.1),
+                inset 0 2px 0 rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#start-game-button:before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 60%);
+    opacity: 0;
+    transform: scale(0.5);
+    z-index: -1;
+    transition: transform 0.8s ease, opacity 0.8s ease;
+}
+
+#start-game-button:after {
+    content: '→';
+    position: absolute;
+    right: 1.5rem;
+    font-size: 1.3rem;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+}
+
+#start-game-button:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(6, 214, 160, 0.4), 
+                inset 0 -2px 0 rgba(0,0,0,0.2),
+                inset 0 2px 0 rgba(255,255,255,0.3);
+    padding-right: 2.5rem;
+}
+
+#start-game-button:hover:not(:disabled):before {
+    opacity: 0.8;
+    transform: scale(1);
+}
+
+#start-game-button:hover:not(:disabled):after {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+#start-game-button:active:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(6, 214, 160, 0.3);
+}
+
+#start-game-button:disabled {
+    background: linear-gradient(135deg, #97e6d0 0%, #7dd9be 100%);
+    opacity: 0.7;
+    cursor: not-allowed;
+    box-shadow: 0 2px 8px rgba(6, 214, 160, 0.2);
 }
 
 /* 按鈕響應式調整 */
