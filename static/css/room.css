@@ -725,19 +725,30 @@ body.room-page {
     border-bottom: 1px solid #f1f1f1;
     flex-shrink: 0;
     background: linear-gradient(to right, #fdfdff, #f8f9ff); /* 漸變背景 */
+    text-align: center; /* 新增：使內部 inline-block 元素置中 */
 }
 
 #prompt-to-draw {
-    font-size: 1.05rem; /* Slightly larger prompt */
-    color: var(--dark);
+    font-size: 1.1rem; /* 調整字體大小 */
+    color: var(--dark-muted); /* 使用較柔和的深色 */
     font-weight: 500;
-    text-align: center; /* Center prompt text */
-    width: 100%;
+    background-color: #f8f9fa; /* 淡雅的背景色 */
+    padding: 0.75rem 1.5rem; /* 增加內距 */
+    border-radius: var(--radius-md); /* 圓角 */
+    border: 1px solid #e9ecef; /* 細邊框 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* 微妙的陰影 */
+    text-align: center; /* 文本居中 */
+    margin-bottom: 1rem; /* 修改：移除 auto 水平邊距，保留底部邊距 */
+    display: inline-block; /* 使其能水平居中且有背景 */
+    max-width: 90%; /* 避免過長 */
 }
 
 #prompt-to-draw span {
     color: var(--primary);
-    font-weight: 700; /* Make the actual prompt stand out */
+    font-weight: 700; /* 強調提示詞 */
+    /* background-color: rgba(93, 95, 239, 0.08); */ /* 移除：給提示詞一個淡淡的背景 */
+    padding: 0.2rem 0.5rem; /* 提示詞的內距 */
+    border-radius: var(--radius-sm); /* 提示詞的圓角 */
 }
 
 .drawing-main-area .card-body {
@@ -955,15 +966,25 @@ body.room-page {
 
 /* ------------- 9. 猜測區域 ------------- */
 #prompt-to-draw {
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    color: var(--dark);
+    font-size: 1.1rem; /* 調整字體大小 */
+    color: var(--dark-muted); /* 使用較柔和的深色 */
     font-weight: 500;
+    background-color: #f8f9fa; /* 淡雅的背景色 */
+    padding: 0.5rem 1.5rem; /* 增加內距 */
+    border-radius: var(--radius-md); /* 圓角 */
+    border: 1px solid #e9ecef; /* 細邊框 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* 微妙的陰影 */
+    text-align: center; /* 文本居中 */
+    margin: 0;
+    display: inline-block; /* 使其能水平居中且有背景 */
+    max-width: 90%; /* 避免過長 */
 }
 
 #prompt-to-draw span {
     color: var(--primary);
-    font-weight: 600;
+    font-weight: 700; /* 強調提示詞 */
+    padding: 0.2rem 0.5rem; /* 提示詞的內距 */
+    border-radius: var(--radius-sm); /* 提示詞的圓角 */
 }
 
 #image-to-guess-container {
@@ -1174,6 +1195,48 @@ body.room-page {
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+}
+
+#prompt-input-area #submit-prompt-button,
+#drawing-area #submit-drawing-button,
+#guess-input-area #submit-guess-button {
+    min-width: 220px;
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    box-shadow: 0 8px 20px rgba(93, 95, 239, 0.3);
+    transition: all 0.4s ease;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+#prompt-input-area #submit-prompt-button::before,
+#drawing-area #submit-drawing-button::before,
+#guess-input-area #submit-guess-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+    transform: skewX(-25deg);
+    transition: all 0.6s ease;
+    z-index: -1;
+}
+
+#prompt-input-area #submit-prompt-button:hover,
+#drawing-area #submit-drawing-button:hover,
+#guess-input-area #submit-guess-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(93, 95, 239, 0.4);
+}
+
+#prompt-input-area #submit-prompt-button:hover::before,
+#drawing-area #submit-drawing-button:hover::before,
+#guess-input-area #submit-guess-button:hover::before {
+    left: 100%;
 }
 
 .btn-secondary {
