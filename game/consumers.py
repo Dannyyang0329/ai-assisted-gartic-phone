@@ -256,15 +256,15 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             return
             
         num_actual_players = len([p for p in room['players'].values() if not p.get('isBot', False)])
-        if num_actual_players < 2: # 至少需要2名人類玩家才能開始遊戲 (例如，2人遊戲，N=2, N-1=1輪操作)
-                                 # 根據使用者描述，N至少為2。如果N=2, 總共2個條目，1次繪畫。
-                                 # 如果N=3, 總共3個條目，1畫1猜。
-                                 # 遊戲至少需要2人。
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'payload': {'message': '至少需要2名玩家才能開始遊戲'}
-            }))
-            return
+        # if num_actual_players < 2: # 至少需要2名人類玩家才能開始遊戲 (例如，2人遊戲，N=2, N-1=1輪操作)
+        #                          # 根據使用者描述，N至少為2。如果N=2, 總共2個條目，1次繪畫。
+        #                          # 如果N=3, 總共3個條目，1畫1猜。
+        #                          # 遊戲至少需要2人。
+        #     await self.send(text_data=json.dumps({
+        #         'type': 'error',
+        #         'payload': {'message': '至少需要2名玩家才能開始遊戲'}
+        #     }))
+        #     return
             
         hash_key = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         game_room_key = f'game_{hash_key}'

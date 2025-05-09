@@ -51,8 +51,8 @@
             </div>
         </div>
 
-        <!-- 主遊戲區域 -->
-        <div class="main-content">
+        <!-- 右側欄位：包含遊戲狀態和主遊戲區域 -->
+        <div class="right-column">
             <!-- 遊戲狀態區 -->
             <div id="game-status" class="status-bar">
                 <div class="status-icon"></div>
@@ -64,85 +64,115 @@
                     <span id="total-rounds">0</span>
                 </div>
             </div>
-            
-            <!-- 寫題目區域 -->
-            <div id="prompt-input-area" class="game-stage-area hidden">
-                <div class="card game-card">
-                    <div class="card-header">
-                        <h3>請輸入一個有趣的題目</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <input id="prompt-input" type="text" placeholder="例如：一隻貓在彈吉他..." class="form-input" autofocus>
-                        </div>
-                        <button id="submit-prompt-button" class="btn btn-primary btn-block">提交題目</button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- 畫圖區域 -->
-            <div id="drawing-area" class="game-stage-area hidden">
-                <div class="card game-card">
-                    <div class="card-header">
-                        <h3>輪到你畫畫了！</h3>
-                        <div id="prompt-to-draw" class="drawing-prompt">題目：<span></span></div>
-                    </div>
-                    <div class="card-body">
-                        <div id="drawing-tools" class="drawing-tools">
-                            <button id="clear-button" class="tool-btn" title="清除畫布">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <!-- 主遊戲區域 -->
+            <div class="main-content">
+                <!-- 寫題目區域 -->
+                <div id="prompt-input-area" class="game-stage-area hidden">
+                    <div class="card game-card">
+                        <!-- 靈感泡泡裝飾 -->
+                        <div class="inspiration-bubbles">
+                            <div class="bubble bubble-1">💡</div>
+                            <div class="bubble bubble-2">✨</div>
+                            <div class="bubble bubble-3">🎨</div>
+                        </div>
+                        
+                        <div class="card-header">
+                            <h3>創意發想</h3>
+                        </div>
+                        
+                        <div class="card-body">
+                            <!-- 創意圖形 -->
+                            <div class="idea-graphic-container">
+                                <svg class="idea-graphic" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20,50 Q40,20 60,50 T100,50 T140,50 T180,50" stroke="var(--primary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                    <circle cx="60" cy="50" r="8" fill="var(--primary)" opacity="0.7"/>
+                                    <circle cx="100" cy="50" r="15" fill="var(--secondary)" opacity="0.5"/>
+                                    <circle cx="140" cy="50" r="10" fill="var(--accent)" opacity="0.6"/>
                                 </svg>
+                            </div>
+                            
+                            <div class="form-group">
+                                <div class="input-container">
+                                    <input id="prompt-input" type="text" placeholder="輸入有趣的題目..." class="form-input" autofocus>
+                                    <div class="input-icon">🖊️</div>
+                                </div>
+                                
+                                <!-- 移除範例標籤區域 -->
+                            </div>
+                            
+                            <button id="submit-prompt-button" class="btn btn-primary btn-block">
+                                <span class="btn-text">提交創意</span>
+                                <span class="btn-icon">→</span>
                             </button>
-                            <div class="color-picker-container">
-                                <input type="color" id="color-picker" value="#000000" title="選擇顏色">
-                                <span class="color-label">顏色</span>
-                            </div>
-                            <div class="line-width-control">
-                                <input type="range" id="line-width" min="1" max="20" value="5" title="調整線寬">
-                                <span id="line-width-value">5</span>
-                                <span class="width-label">線寬</span>
-                            </div>
                         </div>
-                        <div id="canvas-container" class="canvas-container">
-                            <canvas id="drawing-canvas"></canvas>
-                        </div>
-                        <button id="submit-drawing-button" class="btn btn-primary btn-block">完成繪畫</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- 猜題區域 -->
-            <div id="guess-input-area" class="game-stage-area hidden">
-                <div class="card game-card">
-                    <div class="card-header">
-                        <h3>輪到你猜猜看了！</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="image-to-guess-container" class="image-container">
-                            <p>這是什麼？</p>
-                            <img id="image-to-guess" src="" alt="等待繪畫...">
+                <!-- 畫圖區域 -->
+                <div id="drawing-area" class="game-stage-area hidden">
+                    <div class="card game-card">
+                        <div class="card-header">
+                            <h3>輪到你畫畫了！</h3>
+                            <div id="prompt-to-draw" class="drawing-prompt">題目：<span></span></div>
                         </div>
-                        <div class="form-group">
-                            <input id="guess-input" type="text" placeholder="輸入你的猜測..." class="form-input">
+                        <div class="card-body">
+                            <div id="drawing-tools" class="drawing-tools">
+                                <button id="clear-button" class="tool-btn" title="清除畫布">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                                <div class="color-picker-container">
+                                    <input type="color" id="color-picker" value="#000000" title="選擇顏色">
+                                    <span class="color-label">顏色</span>
+                                </div>
+                                <div class="line-width-control">
+                                    <input type="range" id="line-width" min="1" max="20" value="5" title="調整線寬">
+                                    <span id="line-width-value">5</span>
+                                    <span class="width-label">線寬</span>
+                                </div>
+                            </div>
+                            <div id="canvas-container" class="canvas-container">
+                                <canvas id="drawing-canvas"></canvas>
+                            </div>
+                            <button id="submit-drawing-button" class="btn btn-primary btn-block">完成繪畫</button>
                         </div>
-                        <button id="submit-guess-button" class="btn btn-primary btn-block">提交猜測</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- 結果顯示區域 -->
-            <div id="results-area" class="game-stage-area hidden">
-                <div class="card game-card results-card">
-                    <div class="card-header">
-                        <h2>遊戲結束！結果如下</h2>
-                        <p class="results-desc">每本故事本展示了創意如何經由多個玩家傳遞和演變</p>
+                <!-- 猜題區域 -->
+                <div id="guess-input-area" class="game-stage-area hidden">
+                    <div class="card game-card">
+                        <div class="card-header">
+                            <h3>輪到你猜猜看了！</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="image-to-guess-container" class="image-container">
+                                <p>這是什麼？</p>
+                                <img id="image-to-guess" src="" alt="等待繪畫...">
+                            </div>
+                            <div class="form-group">
+                                <input id="guess-input" type="text" placeholder="輸入你的猜測..." class="form-input">
+                            </div>
+                            <button id="submit-guess-button" class="btn btn-primary btn-block">提交猜測</button>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div id="books-container" class="books-container"></div>
-                        <div class="results-actions">
-                            <button onclick="window.location.href='/'" class="btn btn-secondary">返回大廳</button>
-                            <button onclick="shareResults()" class="btn btn-primary">分享結果</button> <!-- shareResults is now in JS file, ensure it's globally accessible or re-attach event -->
+                </div>
+
+                <!-- 結果顯示區域 -->
+                <div id="results-area" class="game-stage-area hidden">
+                    <div class="card game-card results-card">
+                        <div class="card-header">
+                            <h2>遊戲結束！結果如下</h2>
+                            <p class="results-desc">每本故事本展示了創意如何經由多個玩家傳遞和演變</p>
+                        </div>
+                        <div class="card-body">
+                            <div id="books-container" class="books-container"></div>
+                            <div class="results-actions">
+                                <button onclick="window.location.href='/'" class="btn btn-secondary">返回大廳</button>
+                                <button onclick="shareResults()" class="btn btn-primary">分享結果</button> <!-- shareResults is now in JS file, ensure it's globally accessible or re-attach event -->
+                            </div>
                         </div>
                     </div>
                 </div>
