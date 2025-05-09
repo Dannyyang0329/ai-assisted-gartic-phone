@@ -1275,6 +1275,78 @@ body.room-page {
     transition: all 0.3s ease;
 }
 
+/* 移除靈感泡泡相關樣式 */
+/* .inspiration-bubbles 相關樣式已移除 */
+
+/* 新增的創意裝飾 */
+#prompt-input-area .card-header {
+    position: relative;
+    padding: 1.5rem 1.5rem 1rem;
+    background: transparent;
+    border-bottom: none;
+    text-align: center;
+}
+
+/* 題目輸入區域的特殊裝飾 */
+.idea-decoration {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.idea-decoration.top-right {
+    top: -10px;
+    right: -10px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(93, 95, 239, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: pulse-slow 8s infinite alternate;
+}
+
+.idea-decoration.bottom-left {
+    bottom: -20px;
+    left: -20px;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(44, 204, 228, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: pulse-slow 12s infinite alternate-reverse;
+}
+
+.idea-decoration.middle-right {
+    top: 40%;
+    right: -15px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 138, 101, 0.1);
+    border-radius: 8px;
+    transform: rotate(45deg);
+    animation: rotate-bounce 15s infinite alternate;
+}
+
+/* 裝飾動畫 */
+@keyframes pulse-slow {
+    0% { transform: scale(1); opacity: 0.1; }
+    100% { transform: scale(1.2); opacity: 0.2; }
+}
+
+@keyframes rotate-bounce {
+    0% { transform: rotate(45deg) translateY(0); }
+    50% { transform: rotate(135deg) translateY(-10px); }
+    100% { transform: rotate(225deg) translateY(0); }
+}
+
+/* 現代簡潔風格的題目輸入卡片 */
+#prompt-input-area .game-card {
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    border: none;
+    overflow: visible;
+    background: linear-gradient(to bottom, #ffffff, #fafafa);
+    transition: all 0.3s ease;
+}
+
 #prompt-input-area .card-header {
     position: relative;
     padding: 1.5rem 1.5rem 1rem;

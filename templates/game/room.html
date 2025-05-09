@@ -11,12 +11,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/room.css' %}">
+    <link rel="stylesheet" href="{% static 'css/decorations.css' %}">
 </head>
 <body class="room-page">
     <!-- 背景裝飾 -->
     <div class="background-shape shape-1"></div>
     <div class="background-shape shape-2"></div>
     <div class="background-shape shape-3"></div>
+    
+    <!-- 新增裝飾元素 -->
+    <div class="decorative-elements">
+        <div class="decorative-shape dec-circle medium"></div>
+        <div class="decorative-shape dec-triangle large"></div>
+        <div class="decorative-shape dec-square small"></div>
+        <div class="decorative-shape dec-zigzag large"></div>
+    </div>
     
     <!-- 導航欄 -->
     <nav class="navbar">
@@ -70,12 +79,11 @@
                 <!-- 寫題目區域 -->
                 <div id="prompt-input-area" class="game-stage-area hidden">
                     <div class="card game-card">
-                        <!-- 靈感泡泡裝飾 -->
-                        <div class="inspiration-bubbles">
-                            <div class="bubble bubble-1">💡</div>
-                            <div class="bubble bubble-2">✨</div>
-                            <div class="bubble bubble-3">🎨</div>
-                        </div>
+                        <!-- 移除靈感泡泡裝飾 -->
+                        <!-- 添加新的創意裝飾 -->
+                        <div class="idea-decoration top-right"></div>
+                        <div class="idea-decoration bottom-left"></div>
+                        <div class="idea-decoration middle-right"></div>
                         
                         <div class="card-header">
                             <h3>創意發想</h3>

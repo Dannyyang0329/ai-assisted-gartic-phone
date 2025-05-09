@@ -1,0 +1,185 @@
+/* 裝飾元素共用樣式 */
+.decorative-elements {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -10;
+    overflow: hidden;
+    pointer-events: none; /* 確保不干擾用戶交互 */
+}
+
+.decorative-shape {
+    position: absolute;
+    z-index: -5;
+    opacity: 0.07; /* 半透明效果 */
+    pointer-events: none;
+}
+
+/* 圓形裝飾 */
+.dec-circle {
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+}
+
+.dec-circle.large {
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    right: -100px;
+    animation: float-slow 20s infinite alternate ease-in-out;
+}
+
+.dec-circle.medium {
+    width: 180px;
+    height: 180px;
+    bottom: 5%;
+    left: 10%;
+    background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+    animation: float-slow 15s infinite alternate-reverse ease-in-out;
+    animation-delay: 2s;
+}
+
+/* 三角形裝飾 */
+.dec-triangle {
+    width: 0;
+    height: 0;
+    border-left: 100px solid transparent;
+    border-right: 100px solid transparent;
+    border-bottom: 180px solid var(--accent);
+    opacity: 0.05;
+}
+
+.dec-triangle.large {
+    top: 60%;
+    left: -50px;
+    transform: rotate(-20deg);
+    animation: rotate-slow 30s infinite linear;
+}
+
+.dec-triangle.small {
+    width: 0;
+    height: 0;
+    border-left: 60px solid transparent;
+    border-right: 60px solid transparent;
+    border-bottom: 110px solid var(--primary);
+    top: 10%;
+    left: 10%;
+    animation: rotate-slow 25s infinite linear reverse;
+    opacity: 0.07;
+}
+
+/* 正方形裝飾 */
+.dec-square {
+    background-color: var(--secondary);
+    border-radius: 12px; /* 圓角大小 */
+}
+
+.dec-square.large {
+    width: 120px;
+    height: 120px;
+    bottom: 15%;
+    right: 15%;
+    transform: rotate(15deg);
+    animation: rotate-pulse 25s infinite alternate ease-in-out;
+    opacity: 0.06;
+}
+
+.dec-square.small {
+    width: 80px;
+    height: 80px;
+    top: 45%;
+    right: 25%;
+    transform: rotate(30deg);
+    background-color: var(--success);
+    animation: rotate-pulse 20s infinite alternate-reverse ease-in-out;
+    animation-delay: 3s;
+    opacity: 0.05;
+}
+
+/* 鋸齒形狀裝飾 */
+.dec-zigzag {
+    position: absolute;
+    width: 180px;
+    height: 40px;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--primary),
+        var(--primary) 10px,
+        transparent 10px,
+        transparent 20px
+    );
+    opacity: 0.06;
+}
+
+.dec-zigzag.large {
+    top: 40%;
+    left: 5%;
+    transform: rotate(30deg);
+    animation: shift-slow 30s infinite alternate ease-in-out;
+}
+
+.dec-zigzag.small {
+    width: 120px;
+    height: 25px;
+    bottom: 20%;
+    right: 30%;
+    transform: rotate(-15deg);
+    background: repeating-linear-gradient(
+        45deg,
+        var(--accent),
+        var(--accent) 8px,
+        transparent 8px,
+        transparent 16px
+    );
+    animation: shift-slow 20s infinite alternate-reverse ease-in-out;
+    animation-delay: 4s;
+    opacity: 0.05;
+}
+
+/* 動畫定義 */
+@keyframes float-slow {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-40px); }
+}
+
+@keyframes rotate-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes rotate-pulse {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes shift-slow {
+    0% { transform: rotate(30deg) translateX(0); }
+    100% { transform: rotate(30deg) translateX(50px); }
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+    .dec-circle.large {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .dec-triangle.large {
+        border-left: 70px solid transparent;
+        border-right: 70px solid transparent;
+        border-bottom: 120px solid var(--accent);
+    }
+    
+    .dec-square.large {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .dec-zigzag.large {
+        width: 120px;
+        height: 30px;
+    }
+}
