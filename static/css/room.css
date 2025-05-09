@@ -88,6 +88,7 @@ body.room-page {
     color: var(--primary); /* Consistent with waiting_room */
     transform: translateY(-1px);
     background-color: white; /* Keep background white on hover */
+    box-shadow: 0 3px 10px rgba(93, 95, 239, 0.1); /* Added for consistency */
 }
 
 .nav-icon {
@@ -350,7 +351,7 @@ body.room-page {
     gap: 1.5rem; /* Space out elements within the stage */
     text-align: center; /* Center text */
     flex-grow: 1; /* Allow stage area to take available space */
-    min-height: 300px; /* Minimum height for game stages */
+    min-height: 400px; /* Increased minimum height for game stages */
 }
 
 .game-stage-area h2, .game-stage-area h3 {
@@ -467,19 +468,21 @@ body.room-page {
 #drawing-tools {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1rem; /* Adjusted gap */
     margin-bottom: 1.5rem;
     padding: 1rem;
-    background-color: #f9f9f9;
-    border-radius: var(--radius-sm);
-    flex-wrap: wrap;
+    background-color: #f8f9faff; /* Lighter background */
+    border-radius: var(--radius-md); /* Slightly larger radius */
+    flex-wrap: wrap; /* Allow tools to wrap on smaller widths */
+    justify-content: center; /* Center tools if they wrap */
+    border: 1px solid #e9ecef;
 }
 
 .tool-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px; /* Slightly larger buttons */
+    height: 44px;
     background-color: white;
-    border: 1px solid #e1e1e1;
+    border: 1px solid #dee2e6; /* Softer border */
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
@@ -489,33 +492,37 @@ body.room-page {
 }
 
 .tool-btn svg {
-    width: 20px;
-    height: 20px;
-    stroke: var(--dark);
+    width: 22px; /* Slightly larger icons */
+    height: 22px;
+    stroke: var(--dark-muted, #555); /* Softer stroke color */
 }
 
 .tool-btn:hover {
-    background-color: #f1f1f1;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    background-color: #f1f3f5; /* Lighter hover */
+    border-color: #ced4da;
+    transform: translateY(-1px); /* Subtle lift */
+    box-shadow: var(--shadow-xs);
 }
 
 .color-picker-container {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 44px; /* Match tool-btn */
+    height: 44px;
     overflow: hidden;
     border-radius: var(--radius-sm);
-    border: 1px solid #e1e1e1;
+    border: 1px solid #dee2e6;
+    background-color: white; /* Ensure background for the picker itself */
 }
 
 #color-picker {
     position: absolute;
-    top: -5px;
-    left: -5px;
-    width: 50px;
-    height: 50px;
+    top: 50%; /* Center the picker */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38px; /* Actual clickable area */
+    height: 38px;
     border: none;
+    padding: 0; /* Remove default padding */
     cursor: pointer;
 }
 
@@ -526,34 +533,38 @@ body.room-page {
     background-color: white;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-sm);
-    border: 1px solid #e1e1e1;
+    border: 1px solid #dee2e6;
 }
 
 #line-width {
     width: 120px;
     margin: 0;
+    cursor: pointer;
 }
 
 #line-width-value {
-    background-color: #f1f1f1;
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--radius-sm);
-    min-width: 20px;
+    background-color: #f1f3f5; /* Lighter background */
+    padding: 0.25rem 0.6rem; /* Slightly more padding */
+    border-radius: var(--radius-xs);
+    min-width: 24px; /* Ensure enough space for two digits */
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Slightly smaller font */
     font-weight: 500;
+    color: var(--dark-muted, #555);
 }
 
 /* 畫布容器 */
 #canvas-container {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    max-width: 700px; /* Increased max-width for the canvas container */
+    aspect-ratio: 16 / 10; /* Adjusted aspect ratio for more drawing space */
     background-color: white;
-    border: 2px solid #e1e1e1;
-    border-radius: var(--radius-sm);
-    margin-bottom: 1.5rem;
+    border: 2px solid #dee2e6; /* Softer border */
+    border-radius: var(--radius-md); /* Larger radius */
+    margin: 0 auto 1.5rem auto; /* Center the canvas container */
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-subtle); /* Softer shadow */
+    position: relative; /* For potential overlays or messages */
 }
 
 #drawing-canvas {
@@ -563,17 +574,7 @@ body.room-page {
 }
 
 /* Drawing Area Specifics */
-#drawing-canvas-container {
-    border: 1px solid #dee2e6;
-    border-radius: var(--radius-sm);
-    overflow: hidden; /* Clip canvas if it overflows */
-    box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05)); /* Fallback */
-    width: 100%; /* Make it responsive */
-    max-width: 550px; /* Slightly smaller max-width */
-    aspect-ratio: 4 / 3; /* Maintain aspect ratio */
-    margin: 0 auto 1rem; /* Center and add bottom margin */
-    background-color: #fff; /* Ensure canvas background is white */
-}
+/* #drawing-canvas-container selector was incorrect, targeting #canvas-container directly */
 
 #drawing-canvas {
     display: block; /* Remove extra space below canvas */
@@ -624,6 +625,7 @@ body.room-page {
 
 #clear-button:hover {
     background-color: #e9ecef;
+    border-color: #adb5bd; /* Added border color change on hover */
 }
 
 #prompt-to-draw {
@@ -639,27 +641,25 @@ body.room-page {
 }
 
 /* 圖片猜測 */
+#image-to-guess-container { /* Ensure this container allows the image to be large */
+    width: 100%;
+    max-width: 700px; /* Allow image container to be large */
+    margin: 0 auto 1.5rem auto; /* Center it */
+}
+
 #image-to-guess {
     width: 100%;
-    max-height: 350px;
+    max-height: 500px; /* Increased max-height for guessed image */
     object-fit: contain;
-    border: 2px solid #e1e1e1;
-    border-radius: var(--radius-sm);
+    border: 2px solid #dee2e6;
+    border-radius: var(--radius-md); /* Larger radius */
     background-color: white;
-    margin-bottom: 1.5rem;
+    /* margin-bottom: 1.5rem; */ /* Margin handled by container */
+    box-shadow: var(--shadow-subtle);
 }
 
 /* Guess Area Specifics */
-#image-to-guess {
-    max-width: 100%;
-    height: auto;
-    max-height: 350px; /* Consistent max height */
-    border: 1px solid #dee2e6;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05));
-    background-color: #fff; /* Ensure background for transparent images */
-    margin: 0 auto 1rem; /* Center and add bottom margin */
-}
+/* #image-to-guess styles are now more prominent */
 
 /* 結果區域 */
 .results-card {
@@ -738,7 +738,7 @@ body.room-page {
 
 .book-drawing {
     max-width: 100%;
-    max-height: 300px;
+    max-height: 400px; /* Increased max-height for result drawings */
     border: 1px solid #e1e1e1;
     border-radius: var(--radius-sm);
     margin-top: 0.5rem;
@@ -954,7 +954,7 @@ body.room-page {
         width: 100%; /* Full width for sidebar */
         order: 2; /* Move sidebar below main content if desired, or 1 for above */
         height: auto; /* Adjust height */
-        max-height: 45vh; /* Slightly more height for player list */
+        max-height: 40vh; /* Adjusted max-height for player list on smaller screens */
     }
     .player-card {
         height: auto; /* Auto height for player card */
@@ -981,9 +981,10 @@ body.room-page {
     }
     .game-stage-area {
         padding: 1.5rem 1rem; /* Adjust padding for smaller screens */
-        min-height: 250px; /* Adjust min height */
+        min-height: 300px; /* Adjusted min height for smaller screens */
     }
-    #drawing-canvas-container, .drawing-controls {
+    /* #drawing-canvas-container, .drawing-controls { */
+    #canvas-container, .drawing-controls { /* Corrected selector */
         max-width: 100%; /* Allow full width on smaller screens */
     }
 }
@@ -994,7 +995,7 @@ body.room-page {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
-        padding: 0.6rem 1rem; /* Adjust padding */
+        padding: 0.8rem 1rem; /* Adjusted padding */
     }
     .round-indicator {
         margin-left: 0;
@@ -1020,6 +1021,12 @@ body.room-page {
     .form-input, #prompt-input, #guess-input {
         padding: 0.7rem 0.9rem; /* Adjust input padding */
         font-size: 0.95rem;
+    }
+    #canvas-container {
+        aspect-ratio: 4 / 3; /* May need a more square ratio on mobile if height is constrained */
+    }
+    #image-to-guess {
+        max-height: 350px; /* Adjust for mobile */
     }
 }
 
@@ -1125,7 +1132,7 @@ body.room-page {
 .book-drawing {
     display: block;
     max-width: 100%;
-    max-height: 300px;
+    max-height: 400px; /* Consistent with earlier change */
     margin: 0.5rem auto 0;
     border: 1px solid #eee;
     border-radius: var(--radius-xs);
