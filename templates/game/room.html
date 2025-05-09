@@ -113,32 +113,73 @@
 
                 <!-- 畫圖區域 -->
                 <div id="drawing-area" class="game-stage-area hidden">
-                    <div class="card game-card">
-                        <div class="card-header">
-                            <h3>輪到你畫畫了！</h3>
-                            <div id="prompt-to-draw" class="drawing-prompt">題目：<span></span></div>
+                    <div class="card game-card drawing-interface"> <!-- Added class for new layout -->
+                        <div class="drawing-main-area"> <!-- New: Main area for prompt and canvas -->
+                            <div class="card-header">
+                                <div id="prompt-to-draw" class="drawing-prompt">題目：<span></span></div>
+                            </div>
+                            <div class="card-body">
+                                <div id="canvas-container" class="canvas-container">
+                                    <canvas id="drawing-canvas"></canvas>
+                                </div>
+                                <button id="submit-drawing-button" class="btn btn-primary btn-block">完成繪畫</button>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div id="drawing-tools" class="drawing-tools">
-                                <button id="clear-button" class="tool-btn" title="清除畫布">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                </button>
-                                <div class="color-picker-container">
-                                    <input type="color" id="color-picker" value="#000000" title="選擇顏色">
-                                    <span class="color-label">顏色</span>
-                                </div>
-                                <div class="line-width-control">
-                                    <input type="range" id="line-width" min="1" max="20" value="5" title="調整線寬">
-                                    <span id="line-width-value">5</span>
-                                    <span class="width-label">線寬</span>
-                                </div>
+                        <div class="drawing-tools-panel"> <!-- Moved to be after drawing-main-area -->
+                            <button id="pen-tool" class="tool-btn active" title="畫筆">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                    <path d="M18 13l-1.5-1.5M12 19l-4-4"></path>
+                                </svg>
+                            </button>
+                            <button id="eraser-tool" class="tool-btn" title="橡皮擦">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5Z"></path>
+                                    <line x1="16" y1="8" x2="2" y2="22"></line>
+                                </svg>
+                            </button>
+                             <button id="fill-tool" class="tool-btn" title="填滿">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22.5c-1.5 0-2.9-.6-4-1.7s-1.7-2.5-1.7-4V7.2c0-1.5.6-2.9 1.7-4s2.5-1.7 4-1.7c1.5 0 2.9.6 4 1.7s1.7 2.5 1.7 4v.8c0 .5-.2.9-.5 1.2s-.7.5-1.2.5h-1.5c-.5 0-.9-.2-1.2-.5s-.5-.7-.5-1.2V7.2c0-.8-.3-1.5-.9-2.1s-1.3-.9-2.1-.9c-.8 0-1.5.3-2.1.9s-.9 1.3-.9 2.1v9.6c0 .8.3 1.5.9 2.1s1.3.9 2.1.9h5.2c1.1 0 2 .9 2 2s-.9 2-2 2h-5.2zM7.5 10.5H2c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h5.5V4.5C7.5 3.7 6.8 3 6 3S4.5 3.7 4.5 4.5v1H3c-.6 0-1 .4-1 1v2.5c0 .6.4 1 1 1h1.5v1.5c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-1z"/>
+                                </svg>
+                            </button>
+                            <div class="color-picker-container">
+                                <input type="color" id="color-picker" value="#000000" title="選擇顏色">
                             </div>
-                            <div id="canvas-container" class="canvas-container">
-                                <canvas id="drawing-canvas"></canvas>
+                            <div class="line-width-control">
+                                <input type="range" id="line-width" min="1" max="30" value="5" title="調整線寬 (畫筆/橡皮擦/線條/形狀)">
+                                <span id="line-width-value">5</span>
                             </div>
-                            <button id="submit-drawing-button" class="btn btn-primary btn-block">完成繪畫</button>
+                            <button id="line-tool" class="tool-btn" title="直線">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="5" y1="19" x2="19" y2="5"></line>
+                                </svg>
+                            </button>
+                            <button id="rect-tool" class="tool-btn" title="矩形">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                </svg>
+                            </button>
+                            <button id="circle-tool" class="tool-btn" title="圓形">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                            </button>
+                            <button id="undo-button" class="tool-btn" title="復原">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 13H6.83l3.58-3.59L9 8l-6 6 6 6 1.41-1.41L6.83 15H21v-2z"></path>
+                                </svg>
+                            </button>
+                            <button id="redo-button" class="tool-btn" title="取消復原">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 13h14.17l-3.58-3.59L15 8l6 6-6 6-1.41-1.41L15.17 15H3v-2z"></path>
+                                </svg>
+                            </button>
+                            <button id="clear-button" class="tool-btn" title="清除畫布">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>

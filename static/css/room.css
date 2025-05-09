@@ -514,22 +514,78 @@ body.room-page {
 }
 
 /* ------------- 8. 繪圖區域 ------------- */
-#drawing-tools {
+#drawing-area .game-card { /* Target specific card in drawing area */
+    flex-direction: row; /* Arrange tools panel and main area side-by-side */
+    padding: 0; /* Remove padding from game-card to allow full height/width children */
+    overflow: hidden; /* Prevent scrollbars on the card itself */
+}
+
+.drawing-interface { /* Class for the main drawing area card */
     display: flex;
+    flex-direction: row; /* main area first, then tools panel */
+    height: 100%; /* Ensure it takes full height of its container */
+    width: 100%;
+}
+
+.drawing-tools-panel {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
+    gap: 0.8rem; /* Spacing between tools */
+    padding: 1rem 0.75rem;
     background-color: #f8f9faff;
-    border-radius: var(--radius-md);
-    flex-wrap: wrap;
-    justify-content: center;
-    border: 1px solid #e9ecef;
+    /* border-right: 1px solid #e9ecef; */ /* Removed right border */
+    border-left: 1px solid #e9ecef; /* Added left border */
+    flex-shrink: 0;
+    overflow-y: auto; /* Allow scrolling if too many tools */
+    order: 1; /* Ensure tools panel is on the right if HTML order changes behavior */
+}
+
+.drawing-main-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Allow shrinking */
+    background-color: #fff; /* White background for the drawing content area */
+    order: 0; /* Ensure main area is on the left */
+}
+
+.drawing-main-area .card-header {
+    padding: 0.75rem 1.2rem; /* Adjust padding as needed */
+    border-bottom: 1px solid #f1f1f1;
+    flex-shrink: 0;
+    background-color: #fdfdff; /* Slightly off-white for header */
+}
+
+#prompt-to-draw {
+    font-size: 1.05rem; /* Slightly larger prompt */
+    color: var(--dark);
+    font-weight: 500;
+    text-align: center; /* Center prompt text */
+    width: 100%;
+}
+
+#prompt-to-draw span {
+    color: var(--primary);
+    font-weight: 700; /* Make the actual prompt stand out */
+}
+
+.drawing-main-area .card-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem; /* Padding around canvas and submit button */
+    overflow: hidden; /* Prevent this body from scrolling, canvas container will handle it */
+}
+
+/* Remove old #drawing-tools styling as it's replaced by .drawing-tools-panel */
+#drawing-tools {
+    display: none; /* Hide the old one if it's still in HTML by mistake */
 }
 
 .tool-btn {
-    width: 44px;
-    height: 44px;
+    width: 48px; /* Slightly larger buttons */
+    height: 48px;
     background-color: white;
     border: 1px solid #dee2e6;
     border-radius: var(--radius-sm);
@@ -541,22 +597,25 @@ body.room-page {
 }
 
 .tool-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 24px; /* Larger icons */
+    height: 24px;
     stroke: #555;
 }
 
-.tool-btn:hover {
-    background-color: #f1f3f5;
-    border-color: #ced4da;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-xs);
+.tool-btn.active {
+    background-color: var(--primary-light);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(93, 95, 239, 0.2);
+}
+
+.tool-btn.active svg {
+    stroke: var(--primary);
 }
 
 .color-picker-container {
     position: relative;
-    width: 44px;
-    height: 44px;
+    width: 40px; /* Adjusted size */
+    height: 40px;
     overflow: hidden;
     border-radius: var(--radius-sm);
     border: 1px solid #dee2e6;
@@ -568,8 +627,10 @@ body.room-page {
 
 #color-picker {
     position: absolute;
-    width: 38px;
-    height: 38px;
+    top: 2px; /* Center it better */
+    left: 2px;
+    width: 36px; /* Adjusted size */
+    height: 36px;
     border: none;
     padding: 0;
     cursor: pointer;
@@ -578,22 +639,23 @@ body.room-page {
 
 .line-width-control {
     display: flex;
+    flex-direction: column; /* Stack slider and value vertically */
     align-items: center;
-    gap: 0.75rem;
-    background-color: white;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid #dee2e6;
+    gap: 0.4rem; /* Smaller gap */
+    background-color: transparent; /* Remove background, panel has it */
+    padding: 0.5rem 0; /* Adjust padding */
+    border: none; /* Remove border, panel has it */
+    width: 100%; /* Take full width of tool panel section */
 }
 
 #line-width {
-    width: 120px;
+    width: 80%; /* Make slider take most of the tool width */
     margin: 0;
     cursor: pointer;
 }
 
 #line-width-value {
-    background-color: #f1f3f5;
+    background-color: #e9ecef; /* Slightly different background for value */
     padding: 0.25rem 0.6rem;
     border-radius: var(--radius-xs);
     min-width: 24px;
@@ -606,12 +668,11 @@ body.room-page {
 /* 畫布 */
 #canvas-container {
     width: 100%;
-    max-width: 800px;
-    aspect-ratio: 16 / 10;
+    flex-grow: 1; /* Allow canvas container to take available vertical space */
     background-color: white;
     border: 2px solid #dee2e6;
     border-radius: var(--radius-md);
-    margin: 0.5rem auto;
+    margin: 0 0 1rem 0; /* Margin at the bottom before submit button */
     overflow: hidden;
     box-shadow: var(--shadow-subtle);
     position: relative;
@@ -621,6 +682,19 @@ body.room-page {
     display: block;
     width: 100%;
     height: 100%;
+    cursor: crosshair;
+}
+
+#drawing-canvas.eraser-cursor {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'><rect x='5' y='5' width='14' height='14' rx='2' ry='2' stroke='white' stroke-width='1.5' fill='grey'/><rect x='6' y='6' width='12' height='12' rx='1' ry='1' fill='white'/></svg>") 12 12, auto;
+}
+
+#drawing-canvas.fill-cursor {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23333'><path d='M12 2.25c-1.5 0-2.9.6-4 1.7s-1.7 2.5-1.7 4V7.2c0-1.5.6-2.9 1.7-4s2.5-1.7 4-1.7c1.5 0 2.9.6 4 1.7s1.7 2.5 1.7 4v.8c0 .5-.2.9-.5 1.2s-.7.5-1.2.5h-1.5c-.5 0-.9-.2-1.2-.5s-.5-.7-.5-1.2V7.2c0-.8-.3-1.5-.9-2.1s-1.3-.9-2.1-.9c-.8 0-1.5.3-2.1.9s-.9 1.3-.9 2.1v9.6c0 .8.3 1.5.9 2.1s1.3.9 2.1.9h5.2c1.1 0 2 .9 2 2s-.9 2-2 2h-5.2zM7.5 10.5H2c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h5.5V4.5C7.5 3.7 6.8 3 6 3S4.5 3.7 4.5 4.5v1H3c-.6 0-1 .4-1 1v2.5c0 .6.4 1 1 1h1.5v1.5c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-1z'/></svg>") 4 18, auto;
+}
+#drawing-canvas.line-cursor,
+#drawing-canvas.rect-cursor,
+#drawing-canvas.circle-cursor {
     cursor: crosshair;
 }
 
@@ -971,8 +1045,26 @@ body.room-page {
         padding: 0.5rem;
     }
     
-    #canvas-container, .drawing-controls {
+    #canvas-container {
         max-width: 100%;
+    }
+
+    #drawing-area .game-card {
+        flex-direction: column-reverse; /* Stack tools panel below canvas on smaller screens */
+    }
+    .drawing-tools-panel {
+        flex-direction: row; /* Tools side-by-side */
+        flex-wrap: wrap; /* Allow tools to wrap */
+        justify-content: center;
+        /* border-right: none; */ /* Already removed */
+        border-left: none; /* Remove left border */
+        border-top: 1px solid #e9ecef; /* Add top border when stacked */
+        padding: 0.5rem;
+        width: 100%; /* Full width */
+        order: 0; /* Reset order for column-reverse */
+    }
+    .drawing-main-area {
+        order: 1; /* Reset order for column-reverse */
     }
 }
 

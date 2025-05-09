@@ -8,27 +8,69 @@ document.addEventListener('DOMContentLoaded', function() {
     // 動態設定畫布尺寸以匹配容器
     function resizeCanvas() {
         const cs = getComputedStyle(canvasContainer);
-        const width = parseInt(cs.getPropertyValue('width'), 10);
-        const height = parseInt(cs.getPropertyValue('height'), 10);
-        drawingCanvasEl.width = width;
-        drawingCanvasEl.height = height;
-        
-        // 重新繪製背景色和恢復 context 設置
-        if (context) {
-            context.fillStyle = "#FFFFFF";
-            context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
-            context.lineCap = 'round';
-            context.lineJoin = 'round';
-            context.lineWidth = lineWidth.value;
-            context.strokeStyle = colorPicker.value;
+        const newWidth = parseInt(cs.getPropertyValue('width'), 10);
+        const newHeight = parseInt(cs.getPropertyValue('height'), 10);
+
+        // 如果容器尚未有有效尺寸，則延遲或返回
+        if (newWidth <= 0 || newHeight <= 0) {
+            // console.warn("Canvas container has zero or invalid dimensions. Resize deferred or skipped.");
+            // 可以選擇在此處安排一個短暫延遲後重試，或者依賴後續的 resize 事件
+            // 為簡單起見，如果初始尺寸無效，我們可能需要確保CSS已應用
+            // 另一種可能是，如果畫布不可見，則不執行調整大小
+            if (!canvasContainer.offsetParent) { // Check if container is visible
+                 // console.log("Canvas container is not visible, skipping resize.");
+                 return;
+            }
+            // 如果仍然是0，則可能是一個真正的佈局問題或初始加載問題
+            if (newWidth <= 0 || newHeight <= 0) {
+                console.warn(`Canvas container has zero dimensions (W: ${newWidth}, H: ${newHeight}). Resize skipped.`);
+                return;
+            }
         }
+        
+        // 檢查尺寸是否真的改變，以避免不必要的重繪/歷史清除
+        if (drawingCanvasEl.width === newWidth && drawingCanvasEl.height === newHeight) {
+            return;
+        }
+
+        drawingCanvasEl.width = newWidth;
+        drawingCanvasEl.height = newHeight;
+        
+        // 調整大小後重新初始化上下文屬性
+        context.fillStyle = canvasBackgroundColor; // 使用動態背景色
+        context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = lineWidth.value; // 使用當前滑桿值
+        context.strokeStyle = colorPicker.value; // 使用當前顏色選擇器值
+        
+        // 確保在調整大小後，如果橡皮擦是當前工具，則重新應用其模式
+        if (currentTool === 'eraser') {
+            context.globalCompositeOperation = 'destination-out';
+        } else {
+            context.globalCompositeOperation = 'source-over';
+        }
+        
+        clearUndoRedoStacks();
+        saveCanvasState(); // 保存新的空白狀態
     }
 
-    const context = drawingCanvasEl.getContext('2d');
+    const context = drawingCanvasEl.getContext('2d', { willReadFrequently: true }); // Added willReadFrequently
     const clearButton = document.getElementById('clear-button');
     const colorPicker = document.getElementById('color-picker');
     const lineWidth = document.getElementById('line-width');
     const lineWidthValue = document.getElementById('line-width-value');
+    
+    // New tool buttons
+    const penToolButton = document.getElementById('pen-tool');
+    const eraserToolButton = document.getElementById('eraser-tool');
+    const undoButton = document.getElementById('undo-button');
+    const redoButton = document.getElementById('redo-button');
+    // New tool buttons from HTML
+    const fillToolButton = document.getElementById('fill-tool');
+    const lineToolButton = document.getElementById('line-tool');
+    const rectToolButton = document.getElementById('rect-tool');
+    const circleToolButton = document.getElementById('circle-tool');
     
     // 獲取當前登入用戶信息 (sessionStorage)
     const user_id = sessionStorage.getItem('artflow_userid');
@@ -62,12 +104,24 @@ document.addEventListener('DOMContentLoaded', function() {
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
+    let currentTool = 'pen'; // 'pen', 'eraser', 'fill', 'line', 'rectangle', 'circle'
+    let canvasBackgroundColor = "#FFFFFF"; // Default background
+    let toolActiveState = { // For multi-step tools like line, rectangle, circle
+        isDrawingShape: false, // Generic flag for line, rect, circle
+        startX: 0,
+        startY: 0,
+        currentPreview: null // Stores ImageData for quick preview restore
+    };
+
+    // Undo/Redo stacks
+    let undoStack = [];
+    let redoStack = [];
 
     // 初始化畫布
     context.lineCap = 'round';
     context.lineJoin = 'round';
     context.lineWidth = 5; // 初始值
-    context.fillStyle = "#FFFFFF"; // 確保背景是白色
+    context.fillStyle = canvasBackgroundColor; // 確保背景是白色
     // resizeCanvas 會處理初始繪製，或者在這裡明確調用
     // context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
 
@@ -323,12 +377,18 @@ document.addEventListener('DOMContentLoaded', function() {
         drawingArea.classList.remove('hidden');
         drawingArea.classList.add('fade-in-animation');
         
-        resizeCanvas(); 
-        promptToDraw.textContent = promptText;
-        document.getElementById('prompt-to-draw').classList.remove('hidden'); // Make sure prompt is visible
-        clearLocalCanvas(); 
-        submitDrawingButton.disabled = false;
-        showStatusMessage(`第 ${round} 回合 - 請根據提示繪畫`, 'info');
+        // 確保在調用 resizeCanvas 之前，瀏覽器有機會計算 drawingArea 的新尺寸
+        // requestAnimationFrame 通常用於此類情況，以確保在下一次繪製之前執行
+        requestAnimationFrame(() => {
+            resizeCanvas(); // 在容器可見且尺寸計算後調整畫布大小
+            promptToDraw.textContent = promptText;
+            document.getElementById('prompt-to-draw').classList.remove('hidden'); // Make sure prompt is visible
+            clearLocalCanvas(); // 這也會保存撤銷的初始狀態
+            submitDrawingButton.disabled = false;
+            setCurrentTool('pen'); // 默認為畫筆工具
+            lineWidth.dispatchEvent(new Event('input')); // Ensure line width is applied from current slider value
+            showStatusMessage(`第 ${round} 回合 - 請根據提示繪畫`, 'info');
+        });
     }
 
     function showGuessInput(drawingDataUrl, round) { // round is display_round
@@ -446,11 +506,141 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function clearLocalCanvas() {
-        context.fillStyle = "#FFFFFF"; // 確保清除後的背景是白色
+        context.fillStyle = canvasBackgroundColor; // 確保清除後的背景是白色
         context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+        clearUndoRedoStacks();
+        saveCanvasState(); // Save the cleared state as the first undo state
     }
 
     clearButton.addEventListener('click', clearLocalCanvas);
+
+    // --- Undo/Redo Logic ---
+    function saveCanvasState() {
+        if (undoStack.length >= 20) { // Limit undo history
+            undoStack.shift(); // Remove the oldest state
+        }
+        undoStack.push(drawingCanvasEl.toDataURL());
+        redoStack = []; // Clear redo stack whenever a new drawing action is made
+        updateUndoRedoButtons();
+    }
+
+    function clearUndoRedoStacks() {
+        undoStack = [];
+        redoStack = [];
+        updateUndoRedoButtons();
+    }
+    
+    function undo() {
+        if (undoStack.length > 1) { 
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+            const prevStateDataUrl = undoStack[undoStack.length - 1]; 
+            const img = new Image();
+            img.onload = function() {
+                // 清除前確保畫布尺寸是正確的 (通常在 resizeCanvas 中處理)
+                context.clearRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height); 
+                context.fillStyle = canvasBackgroundColor;
+                context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+                context.drawImage(img, 0, 0);
+            };
+            img.onerror = function() {
+                console.error("Error loading image for undo.");
+                // Handle error, maybe try to pop again or disable undo
+            }
+            img.src = prevStateDataUrl;
+        }
+        updateUndoRedoButtons();
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            const nextStateDataUrl = redoStack.pop();
+            undoStack.push(nextStateDataUrl);
+            const img = new Image();
+            img.onload = function() {
+                context.clearRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height); 
+                context.fillStyle = canvasBackgroundColor;
+                context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+                context.drawImage(img, 0, 0);
+            };
+            img.onerror = function() {
+                console.error("Error loading image for redo.");
+            }
+            img.src = nextStateDataUrl;
+        }
+        updateUndoRedoButtons();
+    }
+
+    function updateUndoRedoButtons() {
+        undoButton.disabled = undoStack.length <= 1; // Disabled if only initial state or no states
+        redoButton.disabled = redoStack.length === 0;
+    }
+
+    undoButton.addEventListener('click', undo);
+    redoButton.addEventListener('click', redo);
+
+
+    // --- Tool Selection Logic ---
+    function setCurrentTool(tool) {
+        currentTool = tool;
+        // Reset active state for all buttons first
+        [penToolButton, eraserToolButton, fillToolButton, lineToolButton, rectToolButton, circleToolButton].forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
+        drawingCanvasEl.className = ''; // Reset cursor classes
+
+        toolActiveState.isDrawingShape = false; // Reset shape drawing state when changing tools
+
+        switch (tool) {
+            case 'pen':
+                if (penToolButton) penToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('crosshair'); 
+                context.strokeStyle = colorPicker.value; // Ensure color is set
+                context.lineWidth = lineWidth.value;
+                context.globalCompositeOperation = 'source-over';
+                break;
+            case 'eraser':
+                if (eraserToolButton) eraserToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('eraser-cursor');
+                context.lineWidth = lineWidth.value; 
+                context.globalCompositeOperation = 'destination-out';
+                break;
+            case 'fill':
+                if (fillToolButton) fillToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('fill-cursor');
+                // Fill color is taken directly from colorPicker.value in floodFill
+                context.globalCompositeOperation = 'source-over'; // Reset for safety, though fill doesn't use it
+                break;
+            case 'line':
+                if (lineToolButton) lineToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('line-cursor');
+                context.strokeStyle = colorPicker.value;
+                context.lineWidth = lineWidth.value;
+                context.globalCompositeOperation = 'source-over';
+                break;
+            case 'rectangle':
+                if (rectToolButton) rectToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('rect-cursor');
+                context.strokeStyle = colorPicker.value;
+                context.lineWidth = lineWidth.value;
+                context.globalCompositeOperation = 'source-over';
+                break;
+            case 'circle':
+                if (circleToolButton) circleToolButton.classList.add('active');
+                drawingCanvasEl.classList.add('circle-cursor');
+                context.strokeStyle = colorPicker.value;
+                context.lineWidth = lineWidth.value;
+                context.globalCompositeOperation = 'source-over';
+                break;
+        }
+    }
+
+    if (penToolButton) penToolButton.addEventListener('click', () => setCurrentTool('pen'));
+    if (eraserToolButton) eraserToolButton.addEventListener('click', () => setCurrentTool('eraser'));
+    if (fillToolButton) fillToolButton.addEventListener('click', () => setCurrentTool('fill'));
+    if (lineToolButton) lineToolButton.addEventListener('click', () => setCurrentTool('line'));
+    if (rectToolButton) rectToolButton.addEventListener('click', () => setCurrentTool('rectangle'));
+    if (circleToolButton) circleToolButton.addEventListener('click', () => setCurrentTool('circle'));
 
     // --- 事件監聽器 ---
     function sendMessage(type, payload = {}) {
@@ -513,46 +703,203 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     colorPicker.addEventListener('input', function() {
-        context.strokeStyle = this.value;
+        if (currentTool === 'pen' || currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            context.strokeStyle = this.value;
+        }
+        // For fill tool, color is read directly in floodFill.
+        // For eraser, strokeStyle is not used.
     });
 
     // 繪圖事件
     function startDrawing(e) {
+        if (currentTool === 'fill') return; // Fill is handled by click
+
         isDrawing = true;
         const rect = drawingCanvasEl.getBoundingClientRect();
-        if (e.touches) {
-            [lastX, lastY] = [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
-        } else {
-            [lastX, lastY] = [e.offsetX, e.offsetY];
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+        lastX = x; // Still useful for pen/eraser if they use it directly
+        lastY = y;
+
+        // Apply current tool's properties before starting any path or getting image data
+        setCurrentTool(currentTool); 
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            context.beginPath();
+            context.moveTo(x, y); // Use current x, y for moveTo
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            toolActiveState.isDrawingShape = true;
+            toolActiveState.startX = x;
+            toolActiveState.startY = y;
+            if (drawingCanvasEl.width > 0 && drawingCanvasEl.height > 0) { // Ensure canvas has dimensions
+                toolActiveState.currentPreview = context.getImageData(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+            } else {
+                toolActiveState.currentPreview = null; // Cannot get image data if canvas is 0x0
+            }
         }
     }
 
     function draw(e) {
-        if (!isDrawing) return;
-        e.preventDefault(); // 防止觸控滾動頁面
+        if (!isDrawing || currentTool === 'fill') return;
+        e.preventDefault(); 
+        
+        const rect = drawingCanvasEl.getBoundingClientRect();
+        const currentX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const currentY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            context.lineTo(currentX, currentY);
+            context.stroke();
+            // Update lastX, lastY for continuous drawing with pen/eraser
+            lastX = currentX; 
+            lastY = currentY;
+        } else if (toolActiveState.isDrawingShape) {
+            // Restore canvas to state before last preview
+            if (toolActiveState.currentPreview) {
+                context.putImageData(toolActiveState.currentPreview, 0, 0);
+            }
+            context.beginPath();
+            if (currentTool === 'line') {
+                context.moveTo(toolActiveState.startX, toolActiveState.startY);
+                context.lineTo(currentX, currentY);
+            } else if (currentTool === 'rectangle') {
+                context.rect(toolActiveState.startX, toolActiveState.startY, currentX - toolActiveState.startX, currentY - toolActiveState.startY);
+            } else if (currentTool === 'circle') {
+                const radius = Math.sqrt(Math.pow(currentX - toolActiveState.startX, 2) + Math.pow(currentY - toolActiveState.startY, 2));
+                context.arc(toolActiveState.startX, toolActiveState.startY, radius, 0, Math.PI * 2);
+            }
+            context.stroke();
+        }
+    }
+
+    function stopDrawing(e) {
+        if (!isDrawing || currentTool === 'fill') {
+            isDrawing = false; // Ensure isDrawing is reset if fill tool was active but drag occurred
+            return;
+        }
         
         const rect = drawingCanvasEl.getBoundingClientRect();
         let currentX, currentY;
 
-        if (e.touches) {
-            currentX = e.touches[0].clientX - rect.left;
-            currentY = e.touches[0].clientY - rect.top;
-        } else {
-            currentX = e.offsetX;
+        if (e.type === 'mouseout' && toolActiveState.isDrawingShape) {
+            // For mouseout, use the last known coordinates from the 'draw' event if available,
+            // or the event's coordinates if it's the only reliable source.
+            // However, the event's coordinates for mouseout are where it left the canvas.
+            currentX = e.offsetX; //offsetX/Y are relative to the target element
             currentY = e.offsetY;
+
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            currentX = e.changedTouches[0].clientX - rect.left;
+            currentY = e.changedTouches[0].clientY - rect.top;
+        } else {
+            currentX = e.clientX - rect.left;
+            currentY = e.clientY - rect.top;
+        }
+
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            context.closePath();
+        } else if (toolActiveState.isDrawingShape) {
+            if (toolActiveState.currentPreview) {
+                context.putImageData(toolActiveState.currentPreview, 0, 0);
+            }
+            context.beginPath();
+             if (currentTool === 'line') {
+                context.moveTo(toolActiveState.startX, toolActiveState.startY);
+                context.lineTo(currentX, currentY);
+            } else if (currentTool === 'rectangle') {
+                context.rect(toolActiveState.startX, toolActiveState.startY, currentX - toolActiveState.startX, currentY - toolActiveState.startY);
+            } else if (currentTool === 'circle') {
+                const dx = currentX - toolActiveState.startX;
+                const dy = currentY - toolActiveState.startY;
+                const radius = Math.sqrt(dx * dx + dy * dy);
+                if (radius > 0) { // Only draw if radius is positive
+                    context.arc(toolActiveState.startX, toolActiveState.startY, radius, 0, Math.PI * 2);
+                }
+            }
+            if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+                 // Ensure strokeStyle and lineWidth are correctly set from current selections
+                context.strokeStyle = colorPicker.value;
+                context.lineWidth = lineWidth.value;
+                context.stroke();
+            }
+            context.closePath();
+            toolActiveState.isDrawingShape = false;
+            toolActiveState.currentPreview = null;
         }
         
-        context.beginPath();
-        context.moveTo(lastX, lastY);
-        context.lineTo(currentX, currentY);
-        context.stroke();
-
-        [lastX, lastY] = [currentX, currentY];
-    }
-
-    function stopDrawing() {
         isDrawing = false;
+        if (drawingCanvasEl.width > 0 && drawingCanvasEl.height > 0) { // Only save state if canvas is valid
+             saveCanvasState(); 
+        }
     }
+
+    // Flood Fill Implementation (simplified)
+    function floodFill(startX, startY, fillColor) {
+        const imageData = context.getImageData(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+        const data = imageData.data;
+        const canvasWidth = drawingCanvasEl.width;
+        const canvasHeight = drawingCanvasEl.height;
+
+        const startIdx = (startY * canvasWidth + startX) * 4;
+        const startR = data[startIdx];
+        const startG = data[startIdx + 1];
+        const startB = data[startIdx + 2];
+        // const startA = data[startIdx + 3]; // Alpha not always needed for comparison if background is opaque
+
+        // If start color is same as fill color, do nothing
+        const fillR = parseInt(fillColor.slice(1, 3), 16);
+        const fillG = parseInt(fillColor.slice(3, 5), 16);
+        const fillB = parseInt(fillColor.slice(5, 7), 16);
+
+        if (startR === fillR && startG === fillG && startB === fillB) {
+            return;
+        }
+
+        const queue = [[startX, startY]];
+        
+        function getColor(x, y) {
+            if (x < 0 || x >= canvasWidth || y < 0 || y >= canvasHeight) return [-1,-1,-1,-1]; // Out of bounds
+            const idx = (y * canvasWidth + x) * 4;
+            return [data[idx], data[idx+1], data[idx+2], data[idx+3]];
+        }
+
+        function setColor(x, y, r, g, b, a = 255) {
+            const idx = (y * canvasWidth + x) * 4;
+            data[idx] = r;
+            data[idx+1] = g;
+            data[idx+2] = b;
+            data[idx+3] = a;
+        }
+
+        while (queue.length > 0) {
+            const [x, y] = queue.shift();
+            const currentColor = getColor(x,y);
+
+            if (currentColor[0] === startR && currentColor[1] === startG && currentColor[2] === startB) {
+                setColor(x, y, fillR, fillG, fillB);
+
+                if (x + 1 < canvasWidth) queue.push([x + 1, y]);
+                if (x - 1 >= 0) queue.push([x - 1, y]);
+                if (y + 1 < canvasHeight) queue.push([x, y + 1]);
+                if (y - 1 >= 0) queue.push([x, y - 1]);
+            }
+        }
+        context.putImageData(imageData, 0, 0);
+        saveCanvasState();
+    }
+
+    drawingCanvasEl.addEventListener('click', function(e) {
+        if (currentTool === 'fill') {
+            if (isDrawing) return; // Don't fill if a drag operation was mistakenly started
+            const rect = drawingCanvasEl.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            floodFill(Math.floor(x), Math.floor(y), colorPicker.value);
+        }
+    });
+
 
     drawingCanvasEl.addEventListener('mousedown', startDrawing);
     drawingCanvasEl.addEventListener('mousemove', draw);
@@ -568,6 +915,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始調整畫布大小並繪製背景
     resizeCanvas(); 
+    saveCanvasState(); // Save initial blank state for undo
+    updateUndoRedoButtons(); // Initialize button states
 
     // 初始隱藏所有遊戲階段區域
     hideAllSections();
