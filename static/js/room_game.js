@@ -173,12 +173,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Drawing controls are handled by showDrawingArea()
         // Guess input area is shown/hidden by showGuessInput()
 
-        if (stateData.state === 'prompting' && !submitPromptButton.disabled) {
+        if (stateData.state === 'prompting') {
             // If it's prompting state and button is enabled, it means it's this player's turn to prompt
             // (or server sent assign_prompt)
+            // Additional check: if this player is in waiting_on and is a real player, show prompt input.
+            // This handles cases where the player connects slightly late.
+            if (stateData.waiting_on && stateData.waiting_on.includes(myPlayerId)) {
+                const myPlayerData = stateData.players ? stateData.players[myPlayerId] : null;
+                if (myPlayerData && !myPlayerData.isBot) {
+                   showPromptInput();
+                }
+            }
         } else if (stateData.state !== 'prompting') {
             promptInput.disabled = true;
             submitPromptButton.disabled = true;
+            // promptInputArea.classList.add('hidden'); // This is handled by hideAllSections in showX functions
         }
         // Other inputs (drawing, guess) are managed by their respective showXXX functions
     }

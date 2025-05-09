@@ -447,10 +447,10 @@ class GameConsumer(AsyncWebsocketConsumer):
 
             room = game_rooms.get(self.room_group_name)
             if not room:
-                logger.warning(f"GameConsumer: 房間 {self.room_group_name} 不存在，但收到訊息類型 {message_type}")
+                logger.warning(f"GameConsumer: 房間 {self.room_group_name} 不存在，但收到訊息類型 {message_type} from {self.player_id}")
                 return
 
-            print(f"GameConsumer: Received message type: {message_type} from {self.player_id} in {self.room_name}")
+            logger.debug(f"GameConsumer: Received message type: {message_type} from {self.player_id} in {self.room_name}. Payload: {payload}")
 
             if message_type == 'chat_message':
                 await self.handle_chat_message(payload.get('message', ''))
@@ -486,42 +486,133 @@ class GameConsumer(AsyncWebsocketConsumer):
             traceback.print_exc()
 
     async def handle_start_game(self):
-        """
-        (此方法被前端的 'start_game' 訊息觸發後的內部調用取代)
-        現在由 receive -> start_prompting_round 直接觸發
-        """
-        room = game_rooms[self.room_group_name]
-        if room['state'] == 'initializing': # 確保只初始化一次
-            # 可選：打亂玩家順序
-            # random.shuffle(room['turn_order'])
-            # print(f"Turn order for room {self.room_name}: {room['turn_order']}")
-            await self.start_prompting_round()
+        room = game_rooms.get(self.room_group_name)
+        if not room:
+            logger.warning(f"Room {self.room_group_name} not found in handle_start_game for player {self.player_id}.")
+            return
+
+        logger.info(f"Player {self.player_id} triggered handle_start_game for room {self.room_name}. Current state: {room['state']}, Prompting initiated: {room.get('prompting_initiated', False)}")
+
+        if room['state'] == 'initializing' and not room.get('prompting_initiated', False):
+            all_non_bots_connected = True
+            missing_players = []
+            if not room.get('turn_order'):
+                logger.warning(f"Room {self.room_name}: turn_order is empty or not set. Cannot check player readiness.")
+                all_non_bots_connected = False
+            else:
+                for player_id_in_order in room['turn_order']:
+                    player_data = room['players'].get(player_id_in_order)
+                    if not player_data:
+                        logger.warning(f"Room {self.room_name}: Player data for {player_id_in_order} not found in room['players'] during readiness check.")
+                        all_non_bots_connected = False
+                        missing_players.append(f"{player_id_in_order} (data missing)")
+                        break
+                    
+                    if not player_data.get('isBot', False): # It's a human player
+                        if not player_data.get('channel_name'): # Check if connected to GameConsumer
+                            all_non_bots_connected = False
+                            logger.info(f"Room {self.room_name}: Player {player_id_in_order} (human) not yet fully connected to GameConsumer (no channel_name). Waiting...")
+                            missing_players.append(player_id_in_order)
+                            # Do not break here, log all missing players for better diagnostics
+            
+            if missing_players:
+                 logger.info(f"Room {self.room_name}: Still waiting for human players to connect: {missing_players}")
+
+            if all_non_bots_connected:
+                logger.info(f"Room {self.room_name}: All human players detected as connected. Initiating prompting round.")
+                room['prompting_initiated'] = True # Set flag before calling
+                await self.start_prompting_round()
+            else:
+                logger.info(f"Room {self.room_name}: Not all human players are connected yet. Prompting round will not start yet.")
+        elif room.get('prompting_initiated'):
+            logger.info(f"Room {self.room_name}: Prompting round already initiated or in progress. Player {self.player_id} sending 'start_game' again.")
+            # Optionally, resend current game state to this player if they might have missed it
+            await self.send_game_state_to_player(self.player_id, "遊戲已開始，同步狀態...")
+        elif room['state'] != 'initializing':
+            logger.info(f"Room {self.room_name}: Game is not in 'initializing' state (current: {room['state']}). Player {self.player_id} sent 'start_game'.")
+            await self.send_game_state_to_player(self.player_id, "遊戲已在進行中，同步狀態...")
+
 
     async def start_prompting_round(self):
         """開始提示輸入階段"""
-        room = game_rooms[self.room_group_name]
-        if room['state'] != 'initializing':
-            return # 防止重複開始
+        room = game_rooms.get(self.room_group_name)
+        if not room:
+            logger.error(f"start_prompting_round: Room {self.room_group_name} not found!")
+            return
 
+        # Ensure this runs only once if prompting_initiated was the guard
+        # Or, if state is already 'prompting', it might be a re-entry, be careful.
+        if room['state'] != 'initializing': # Check should be against 'initializing'
+            logger.warning(f"Room {self.room_name}: Attempted to start prompting round when not in initializing state (current: {room['state']}). Current op_number: {room.get('current_op_number')}")
+            # If already prompting, perhaps just resend state or assignments to late joiners if supported.
+            # For now, we prevent re-entry if not initializing.
+            return
+
+        logger.info(f"Room {self.room_name}: Executing start_prompting_round.")
         room['state'] = 'prompting'
-        room['current_op_number'] = 0 # 題目階段是操作0
-        room['current_display_round'] = 0 # 題目階段顯示為回合0或不顯示回合
+        room['current_op_number'] = 0 
+        room['current_display_round'] = 0 
         room['assignments'] = {player_id: {'type': 'prompt'} for player_id in room['turn_order']}
         
-        print(f"Room {self.room_name}: Starting prompting round.")
-        await self.broadcast_game_state("請所有玩家提交一個有趣的題目！")
+        logger.info(f"Room {self.room_name}: Initial assignments for prompting: {list(room['assignments'].keys())}")
+        await self.broadcast_game_state("請所有玩家提交一個有趣的題目！") 
+
+        bots_processed_count = 0
+        for player_id in room['turn_order']: 
+            player_data = room['players'].get(player_id)
+            if not player_data:
+                logger.warning(f"Room {self.room_name}: Player data not found for {player_id} in start_prompting_round (turn_order). Skipping.")
+                continue
+
+            if player_data.get('isBot', False):
+                # Bot logic: auto-submit prompt
+                bot_prompts_list = [
+                    "一隻太空貓在月球上釣魚", "一個害羞的機器人送花", "魔法森林裡的秘密派對",
+                    "沉睡火山上的冰淇淋店", "會飛的豬在雲中賽跑", "水下城市的爵士樂隊",
+                    "時間旅行者遺失了他的手錶", "一隻愛讀書的龍", "隱形人在玩捉迷藏"
+                ]
+                bot_prompt = random.choice(bot_prompts_list) + f" (由機器人 {player_data.get('name', player_id)} 提出)"
+                
+                room['books'][player_id].append({
+                    'type': 'prompt',
+                    'data': bot_prompt,
+                    'player': player_id,
+                    'round': 0 # Initial prompt is round 0
+                })
+                if player_id in room['assignments']:
+                    del room['assignments'][player_id] 
+                logger.info(f"Room {self.room_name}: Bot {player_id} ({player_data.get('name', '')}) auto-submitted prompt: {bot_prompt}")
+                bots_processed_count += 1
+            else:
+                # Real player logic
+                player_channel_name = player_data.get('channel_name')
+                logger.info(f"Room {self.room_name}: Processing real player {player_id} ({player_data.get('name', '')}). Channel name from room data: '{player_channel_name}'")
+                if player_channel_name:
+                    logger.info(f"Room {self.room_name}: Sending 'assign_prompt' to player {player_id} on channel {player_channel_name}.")
+                    await self.channel_layer.send(
+                        player_channel_name,
+                        {
+                            'type': 'send_message', 
+                            'message_type': 'assign_prompt', 
+                            'payload': {} 
+                        }
+                    )
+                else:
+                    logger.warning(f"Room {self.room_name}: Real player {player_id} ({player_data.get('name', '')}) HAS NO CHANNEL_NAME during start_prompting_round. Client UI should update via game_state_update if they are in waiting_on.")
+
+        if bots_processed_count > 0:
+            logger.info(f"Room {self.room_name}: Bots have processed. Remaining assignments: {list(room['assignments'].keys())}")
+            if not room['assignments']: 
+                logger.info(f"Room {self.room_name}: All prompts submitted (all bots or bots + instant human submissions). Starting first operation.")
+                # Ensure not to call start_next_operation if game already moved past prompting by a quick human
+                if room['state'] == 'prompting': # Double check state
+                    await self.start_next_operation()
+            else:
+                await self.broadcast_game_state(f"機器人已完成出題，等待 {len(room['assignments'])} 位玩家...")
         
-        # 可以為每個玩家單獨發送 assign_prompt 指令，如果需要的話
-        for player_id in room['turn_order']:
-            if room['players'][player_id].get('channel_name'):
-                await self.channel_layer.send(
-                    room['players'][player_id]['channel_name'],
-                    {
-                        'type': 'send_message', # GameConsumer 方法
-                        'message_type': 'assign_prompt', # 前端識別的類型
-                        'payload': {} 
-                    }
-                )
+        # If no bots, the first broadcast_game_state is active.
+        # Transition to next phase is handled by the last real player's submission.
+        logger.info(f"Room {self.room_name}: Finished start_prompting_round. Current assignments: {list(room['assignments'].keys())}")
 
     async def handle_submit_prompt(self, prompt_text):
         room = game_rooms[self.room_group_name]
@@ -561,74 +652,141 @@ class GameConsumer(AsyncWebsocketConsumer):
         num_players = len(room['turn_order'])
 
         if op_num > room['total_ops']:
-            print(f"Room {self.room_name}: All operations completed. Finishing game.")
+            logger.info(f"Room {self.room_name}: Op# {op_num} exceeds total_ops {room['total_ops']}. Finishing game.")
             await self.finish_game()
             return
 
         is_drawing_op = (op_num % 2 == 1)
         room['current_display_round'] = math.ceil(op_num / 2.0)
         
-        current_assignments = {}
+        current_assignments = {} 
         action_type = 'draw' if is_drawing_op else 'guess'
         next_state = 'drawing' if is_drawing_op else 'guessing'
         room['state'] = next_state
 
-        print(f"Room {self.room_name}: Starting Op# {op_num} (Display Round {room['current_display_round']}) - Type: {next_state}")
+        logger.info(f"Room {self.room_name}: Starting Op# {op_num} (Display Round {room['current_display_round']}) - Type: {next_state}")
+
+        bots_processed_this_op = False
 
         for i, current_player_id in enumerate(room['turn_order']):
-            # 玩家 current_player_id (索引 i) 操作的書本是來自 (i - op_num) 的玩家
+            player_data = room['players'].get(current_player_id)
+            if not player_data:
+                logger.warning(f"Room {self.room_name}: Player data for {current_player_id} not found in start_next_operation. Skipping.")
+                continue
+
             book_owner_index = (i - op_num % num_players + num_players) % num_players
             original_book_owner_id = room['turn_order'][book_owner_index]
             
             book_content = room['books'][original_book_owner_id]
             if not book_content:
-                print(f"Error: Book for {original_book_owner_id} is empty for Op# {op_num} by {current_player_id}!")
-                # This should not happen if prompting was successful
+                logger.error(f"Room {self.room_name}: Book for {original_book_owner_id} is empty for Op# {op_num} by {current_player_id}!")
                 continue 
             
-            item_to_process = book_content[-1] # Get the last item (prompt, drawing, or guess)
+            item_to_process = book_content[-1]
 
-            task_payload = {
+            task_payload_for_assignment = {
                 'original_player_id': original_book_owner_id,
                 'ui_round': room['current_display_round']
             }
             client_message_payload = {
-                'original_player': original_book_owner_id, # For client display
+                'original_player': original_book_owner_id, 
                 'round': room['current_display_round']
             }
 
             if is_drawing_op:
                 if item_to_process['type'] not in ['prompt', 'guess']:
-                    print(f"Error: Expected prompt or guess for drawing, got {item_to_process['type']}")
+                    logger.error(f"Room {self.room_name}: Expected prompt or guess for drawing by {current_player_id}, got {item_to_process['type']}")
                     continue
-                task_payload['type'] = 'draw'
-                task_payload['prompt_or_guess'] = item_to_process['data']
+                
+                task_payload_for_assignment['type'] = 'draw'
+                task_payload_for_assignment['prompt_or_guess'] = item_to_process['data']
                 client_message_payload['prompt_or_guess'] = item_to_process['data']
                 client_message_type = 'request_drawing'
+
+                if player_data.get('isBot', False):
+                    # 機器人繪畫邏輯
+                    # 使用一個簡單的SVG作為預設繪畫內容
+                    bot_drawing_placeholders = [
+                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBlNmYyIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzU1NSI+Qm90J3MgQXJ0PC90ZXh0Pjwvc3ZnPg==",
+                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZDJmMmVhIi8+PGNpcmNsZSBjeD0iMTAwIiBjeT0iNzUiIHI9IjQwIiBmaWxsPSIjZmZjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzMzMyI+Um9ib3QtRGF2aW5jaTwvdGV4dD48L3N2Zz4=",
+                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZThlMWY2Ii8+PHBhdGggZD0iTTUwIDMwIEwxNTAgMzAgTDEwMCAxMjAgWiIgZmlsbD0iI2FmY2RmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNzAlIiBkb21pbmFudC1JYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iY291cmllciIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2Njg3YiI+QklPIC1SVEZMT1c8L3RleHQ+PC9zdmc+"
+                    ]
+                    bot_drawing = random.choice(bot_drawing_placeholders)
+                    
+                    room['books'][original_book_owner_id].append({
+                        'type': 'drawing',
+                        'data': bot_drawing,
+                        'player': current_player_id, 
+                        'round': room['current_display_round']
+                    })
+                    logger.info(f"Room {self.room_name}: Bot {current_player_id} ({player_data.get('name', '')}) auto-submitted drawing for book {original_book_owner_id}.")
+                    bots_processed_this_op = True
+                    continue 
             else: # Guessing Op
                 if item_to_process['type'] != 'drawing':
-                    print(f"Error: Expected drawing for guessing, got {item_to_process['type']}")
+                    logger.error(f"Room {self.room_name}: Expected drawing for guessing by {current_player_id}, got {item_to_process['type']}")
                     continue
-                task_payload['type'] = 'guess'
-                task_payload['drawing_data'] = item_to_process['data']
-                client_message_payload['drawing_data'] = item_to_process['data']
+                
+                task_payload_for_assignment['type'] = 'guess'
+                task_payload_for_assignment['drawing_data'] = item_to_process['data'] # For human player assignment data
+                client_message_payload['drawing_data'] = item_to_process['data'] # For client message
                 client_message_type = 'request_guess'
 
-            current_assignments[current_player_id] = task_payload
+                if player_data.get('isBot', False):
+                    # 機器人猜測邏輯
+                    bot_guess_phrases = [
+                        "一隻貓在彈吉他", "一個快樂的太陽", "跳舞的機器人", "飛碟綁架了一頭牛",
+                        "巫師在施法", "一條龍在噴火", "太空人在月球漫步", "一個巨大的甜甜圈",
+                        "唱歌的胡蘿蔔", "戴著帽子的蛇"
+                    ]
+                    bot_guess = random.choice(bot_guess_phrases) + f" (由機器人 {player_data.get('name', current_player_id)} 猜測)"
+                    
+                    room['books'][original_book_owner_id].append({
+                        'type': 'guess',
+                        'data': bot_guess,
+                        'player': current_player_id, # 機器人是 "猜測者"
+                        'round': room['current_display_round']
+                    })
+                    logger.info(f"Room {self.room_name}: Bot {current_player_id} ({player_data.get('name', '')}) auto-submitted guess '{bot_guess}' for book {original_book_owner_id}.")
+                    bots_processed_this_op = True
+                    continue # 機器人已完成，跳過任務分配和訊息發送
+
+            # 對於真人玩家，或未被自動處理的機器人任務
+            current_assignments[current_player_id] = task_payload_for_assignment
             
-            if room['players'][current_player_id].get('channel_name'):
+            if player_data.get('channel_name'):
                 await self.channel_layer.send(
-                    room['players'][current_player_id]['channel_name'],
+                    player_data['channel_name'],
                     {
                         'type': 'send_message',
                         'message_type': client_message_type,
                         'payload': client_message_payload
                     }
                 )
-            print(f"Assigned task to {current_player_id}: {task_payload['type']} for book {original_book_owner_id} (Op# {op_num})")
+                logger.info(f"Room {self.room_name}: Assigned task to {current_player_id}: {task_payload_for_assignment['type']} for book {original_book_owner_id} (Op# {op_num})")
+            else:
+                if not player_data.get('isBot', False): # 只記錄真人玩家的此類警告
+                     logger.warning(f"Room {self.room_name}: Real player {current_player_id} has no channel_name. Task {task_payload_for_assignment['type']} assigned but cannot send direct message.")
 
         room['assignments'] = current_assignments
-        await self.broadcast_game_state(f"第 {room['current_display_round']} 回合 - {'請開始繪畫' if is_drawing_op else '請開始猜測'}！")
+        
+        status_msg_prefix = f"第 {room['current_display_round']} 回合 - "
+        status_msg_main = "請開始繪畫！" if is_drawing_op else "請開始猜測！"
+
+        if bots_processed_this_op: 
+            current_action_description = "繪畫" if is_drawing_op else "猜測"
+            if not room['assignments']: 
+                logger.info(f"Room {self.room_name}: All {current_action_description} tasks for Op# {op_num} completed by bots or instant human submissions. Starting next operation.")
+                # 確保在正確的狀態下才推進 (drawing 或 guessing)
+                if room['state'] == next_state: 
+                     await self.start_next_operation()
+                return 
+            else:
+                await self.broadcast_game_state(f"{status_msg_prefix}機器人已完成{current_action_description}，等待 {len(room['assignments'])} 位玩家...")
+        else:
+            await self.broadcast_game_state(f"{status_msg_prefix}{status_msg_main}")
+
+        logger.info(f"Room {self.room_name}: Finished Op# {op_num} setup. Current assignments: {list(room['assignments'].keys())}")
 
     async def handle_submit_drawing(self, drawing_data_url):
         room = game_rooms[self.room_group_name]
