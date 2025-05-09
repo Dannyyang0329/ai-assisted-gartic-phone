@@ -7,16 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 動態設定畫布尺寸以匹配容器
     function resizeCanvas() {
+        const oldWidth = drawingCanvasEl.width; // 保存舊尺寸
+        const oldHeight = drawingCanvasEl.height;
+
         const cs = getComputedStyle(canvasContainer);
         const newWidth = parseInt(cs.getPropertyValue('width'), 10);
         const newHeight = parseInt(cs.getPropertyValue('height'), 10);
 
         // 如果容器尚未有有效尺寸，則延遲或返回
         if (newWidth <= 0 || newHeight <= 0) {
-            // console.warn("Canvas container has zero or invalid dimensions. Resize deferred or skipped.");
-            // 可以選擇在此處安排一個短暫延遲後重試，或者依賴後續的 resize 事件
-            // 為簡單起見，如果初始尺寸無效，我們可能需要確保CSS已應用
-            // 另一種可能是，如果畫布不可見，則不執行調整大小
             if (!canvasContainer.offsetParent) { // Check if container is visible
                  // console.log("Canvas container is not visible, skipping resize.");
                  return;
@@ -28,31 +27,53 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // 檢查尺寸是否真的改變，以避免不必要的重繪/歷史清除
-        if (drawingCanvasEl.width === newWidth && drawingCanvasEl.height === newHeight) {
+        // 僅當尺寸實際更改時才調整大小
+        if (oldWidth === newWidth && oldHeight === newHeight) {
             return;
+        }
+
+        let oldImageData = null;
+        // 僅當畫布具有有效尺寸時才儲存當前畫布內容
+        if (oldWidth > 0 && oldHeight > 0) {
+            try {
+                oldImageData = context.getImageData(0, 0, oldWidth, oldHeight);
+            } catch (e) {
+                console.error("Error getting image data for resize: ", e);
+                oldImageData = null; // 如果 getImageData 失敗，則不進行還原
+            }
         }
 
         drawingCanvasEl.width = newWidth;
         drawingCanvasEl.height = newHeight;
         
-        // 調整大小後重新初始化上下文屬性
-        context.fillStyle = canvasBackgroundColor; // 使用動態背景色
-        context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.lineWidth = lineWidth.value; // 使用當前滑桿值
-        context.strokeStyle = colorPicker.value; // 使用當前顏色選擇器值
-        
-        // 確保在調整大小後，如果橡皮擦是當前工具，則重新應用其模式
-        if (currentTool === 'eraser') {
-            context.globalCompositeOperation = 'destination-out';
-        } else {
-            context.globalCompositeOperation = 'source-over';
+        // --- Context 被重設：重新初始化屬性 ---
+
+        // 1. 設定背景顏色 (這將成為畫布狀態的一部分)
+        context.fillStyle = canvasBackgroundColor;
+        context.fillRect(0, 0, newWidth, newHeight);
+
+        // 2. 在新背景之上還原先前的繪圖內容 (如果有的話)
+        if (oldImageData) {
+            try {
+                context.putImageData(oldImageData, 0, 0);
+            } catch (e) {
+                console.error("Error putting image data after resize: ", e);
+                // 內容可能遺失，但畫布已調整大小且背景已設定。
+            }
         }
         
-        clearUndoRedoStacks();
-        saveCanvasState(); // 保存新的空白狀態
+        // 3. 重新套用持久的上下文設定 (如 lineCap/Join) 和當前工具的特定設定。
+        //    呼叫 setCurrentTool 將處理 strokeStyle、lineWidth、globalCompositeOperation，
+        //    以及 UI 元素，如活動按鈕和游標。
+        context.lineCap = 'round'; // 這些是通用的，在 setCurrentTool 中不是工具特定的
+        context.lineJoin = 'round';
+        
+        setCurrentTool(currentTool); // 這將為 *下一個* 繪圖操作設定上下文。
+                                     // 它還確保 lineWidth 和 strokeStyle 來自 UI 控制項。
+        
+        // 移除原始的 clearUndoRedoStacks();
+        // 保存畫布的當前狀態 (已調整大小、背景、已還原內容、準備好進行下一個工具操作)
+        saveCanvasState(); 
     }
 
     const context = drawingCanvasEl.getContext('2d', { willReadFrequently: true }); // Added willReadFrequently
@@ -72,6 +93,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const rectToolButton = document.getElementById('rect-tool');
     const circleToolButton = document.getElementById('circle-tool');
     
+    // Palette buttons
+    const paletteColorButtons = document.querySelectorAll('.palette-color-btn');
+
     // 獲取當前登入用戶信息 (sessionStorage)
     const user_id = sessionStorage.getItem('artflow_userid');
     if (!user_id) {
@@ -642,6 +666,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rectToolButton) rectToolButton.addEventListener('click', () => setCurrentTool('rectangle'));
     if (circleToolButton) circleToolButton.addEventListener('click', () => setCurrentTool('circle'));
 
+    // Palette color button listeners
+    paletteColorButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const selectedColor = this.dataset.color;
+            colorPicker.value = selectedColor;
+            
+            // Trigger input event on colorPicker to update context.strokeStyle and other dependent logic
+            colorPicker.dispatchEvent(new Event('input'));
+
+            // Update selected state for palette buttons
+            paletteColorButtons.forEach(btn => btn.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+
     // --- 事件監聽器 ---
     function sendMessage(type, payload = {}) {
         if (gameSocket.readyState === WebSocket.OPEN) {
@@ -708,6 +748,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // For fill tool, color is read directly in floodFill.
         // For eraser, strokeStyle is not used.
+
+        // Remove 'selected' class from all palette buttons when custom color picker is used
+        paletteColorButtons.forEach(btn => {
+            if (btn.dataset.color.toLowerCase() === this.value.toLowerCase()) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
     });
 
     // 繪圖事件

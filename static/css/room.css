@@ -612,6 +612,37 @@ body.room-page {
     stroke: var(--primary);
 }
 
+.color-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem; /* Gap between color buttons */
+    padding: 0.3rem 0; /* Padding around the palette */
+    justify-content: center; /* Center buttons if they don't fill the row */
+    width: 100%; /* Palette takes available width in the tools panel */
+    margin-bottom: 0.5rem; /* Space before the custom color picker */
+}
+
+.palette-color-btn {
+    width: 22px; /* Size of each color swatch */
+    height: 22px;
+    border-radius: 4px; /* Slightly rounded corners */
+    border: 1px solid rgba(0,0,0,0.1); /* Subtle border */
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.palette-color-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.palette-color-btn.selected { /* Style for the selected palette color */
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light); /* Outer glow */
+    transform: scale(1.05);
+}
+
 .color-picker-container {
     position: relative;
     width: 40px; /* Adjusted size */
