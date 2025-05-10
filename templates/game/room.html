@@ -209,17 +209,17 @@
                                 <!-- 故事本將由 JavaScript 動態載入這裡 -->
                             </div>
                             <div class="book-navigation">
-                                <button id="prev-book-button" class="btn btn-secondary">
+                                <button id="prev-book-button" class="btn btn-secondary btn-nav">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                                     <span>上一個故事</span>
                                 </button>
                                 <span id="book-pagination-info"></span>
-                                <button id="next-book-button" class="btn btn-secondary">
+                                <button id="next-book-button" class="btn btn-secondary btn-nav">
                                     <span>下一個故事</span>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 </button>
-                                <button onclick="window.location.reload()" class="btn btn-primary">再玩一次</button>
-                                <button onclick="shareResults()" class="btn btn-secondary">分享結果</button>
+                                <!-- 離開按鈕使用不同色系 -->
+                                <button onclick="window.location.href='/'" class="btn btn-secondary btn-exit">離開</button>
                             </div>
                         </div>
                     </div>

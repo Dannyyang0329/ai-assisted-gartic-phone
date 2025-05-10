@@ -516,82 +516,96 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function renderCurrentBook() {
         booksContainer.innerHTML = ''; // 清空現有的書本
-
+    
         if (!allBooksPayload || displayedBooksOrder.length === 0) {
             return;
         }
-
-        const originalPlayerId = displayedBooksOrder[currentBookDisplayIndex];
-        const bookData = allBooksPayload.books[originalPlayerId];
-        const playersData = allBooksPayload.players; // 從 payload 中獲取玩家數據
-
-        if (!bookData) return;
-
-        const bookDiv = document.createElement('div');
-        bookDiv.className = 'book';
-        
-        const bookTitle = document.createElement('h4');
-        const initiatorName = playersData[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
-        // 移除書本索引，因為我們有分頁信息
-        bookTitle.textContent = `${initiatorName} 的故事本`;
-        bookDiv.appendChild(bookTitle);
-
-        const progressLine = document.createElement('div');
-        progressLine.className = 'book-progress-line';
-        bookDiv.appendChild(progressLine);
-
-        bookData.forEach((item, itemIndex) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'book-item';
-
-            const itemPlayerId = item.player;
-            const itemPlayerName = playersData[itemPlayerId]?.name || `玩家 ${itemPlayerId.substring(0,4)}`;
-
-            const typeTag = document.createElement('div');
-            typeTag.className = 'book-item-tag';
+    
+        // 創建之前、當前和下一個故事本
+        for (let i = 0; i < displayedBooksOrder.length; i++) {
+            const originalPlayerId = displayedBooksOrder[i];
+            const bookData = allBooksPayload.books[originalPlayerId];
+            const playersData = allBooksPayload.players; // 從 payload 中獲取玩家數據
+    
+            if (!bookData) continue;
+    
+            const bookDiv = document.createElement('div');
+            bookDiv.className = 'book';
             
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'book-item-content';
-
-            let roundText = "";
-            if (item.round > 0) {
-                roundText = ` (第 ${item.round} 回合)`;
-            }
-
-            if (item.type === 'prompt') {
-                typeTag.textContent = '題目';
-                typeTag.classList.add('tag-prompt');
-                const contentText = document.createElement('p');
-                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 提出了題目：<br>"${item.data}"`;
-                contentDiv.appendChild(contentText);
-            } else if (item.type === 'drawing') {
-                typeTag.textContent = '繪畫';
-                typeTag.classList.add('tag-drawing');
-                
-                const contentText = document.createElement('p');
-                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了${roundText}：`;
-                contentDiv.appendChild(contentText);
-                
-                const img = document.createElement('img');
-                img.src = item.data;
-                img.alt = `${itemPlayerName} 的繪畫`;
-                img.className = 'book-drawing';
-                contentDiv.appendChild(img);
-            } else if (item.type === 'guess') {
-                typeTag.textContent = '猜測';
-                typeTag.classList.add('tag-guess');
-                const contentText = document.createElement('p');
-                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是${roundText}：<br>"${item.data}"`;
-                contentDiv.appendChild(contentText);
+            // 設置適當的類別用於轉場動畫
+            if (i === currentBookDisplayIndex) {
+                bookDiv.classList.add('active');
+            } else if (i < currentBookDisplayIndex) {
+                bookDiv.classList.add('previous');
+            } else {
+                bookDiv.classList.add('next');
             }
             
-            itemDiv.appendChild(typeTag);
-            itemDiv.appendChild(contentDiv);
-            bookDiv.appendChild(itemDiv);
-        });
-        booksContainer.appendChild(bookDiv);
+            const bookTitle = document.createElement('h4');
+            const initiatorName = playersData[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
+            bookTitle.textContent = `${initiatorName} 的故事本`;
+            bookDiv.appendChild(bookTitle);
+    
+            const progressLine = document.createElement('div');
+            progressLine.className = 'book-progress-line';
+            bookDiv.appendChild(progressLine);
+    
+            bookData.forEach((item, itemIndex) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'book-item';
+                // 添加用於動畫延遲的自定義屬性
+                itemDiv.style.setProperty('--item-index', itemIndex);
+    
+                const itemPlayerId = item.player;
+                const itemPlayerName = playersData[itemPlayerId]?.name || `玩家 ${itemPlayerId.substring(0,4)}`;
+    
+                const typeTag = document.createElement('div');
+                typeTag.className = 'book-item-tag';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'book-item-content';
+    
+                let roundText = "";
+                if (item.round > 0) {
+                    roundText = ` (第 ${item.round} 回合)`;
+                }
+    
+                if (item.type === 'prompt') {
+                    typeTag.textContent = '題目';
+                    typeTag.classList.add('tag-prompt');
+                    const contentText = document.createElement('p');
+                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 提出了題目：<br>"${item.data}"`;
+                    contentDiv.appendChild(contentText);
+                } else if (item.type === 'drawing') {
+                    typeTag.textContent = '繪畫';
+                    typeTag.classList.add('tag-drawing');
+                    
+                    const contentText = document.createElement('p');
+                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了${roundText}：`;
+                    contentDiv.appendChild(contentText);
+                    
+                    const img = document.createElement('img');
+                    img.src = item.data;
+                    img.alt = `${itemPlayerName} 的繪畫`;
+                    img.className = 'book-drawing';
+                    contentDiv.appendChild(img);
+                } else if (item.type === 'guess') {
+                    typeTag.textContent = '猜測';
+                    typeTag.classList.add('tag-guess');
+                    const contentText = document.createElement('p');
+                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是${roundText}：<br>"${item.data}"`;
+                    contentDiv.appendChild(contentText);
+                }
+                
+                itemDiv.appendChild(typeTag);
+                itemDiv.appendChild(contentDiv);
+                bookDiv.appendChild(itemDiv);
+            });
+            booksContainer.appendChild(bookDiv);
+        }
     }
-
+    
+    // 訂閱事件來處理Prev/Next導航和WebSocket消息
     function updateBookNavigationButtons() {
         if (displayedBooksOrder.length === 0) {
             prevBookButton.style.display = 'none';
@@ -599,13 +613,13 @@ document.addEventListener('DOMContentLoaded', function() {
             bookPaginationInfo.style.display = 'none';
             return;
         }
-
+    
         prevBookButton.style.display = 'inline-flex';
         nextBookButton.style.display = 'inline-flex';
         bookPaginationInfo.style.display = 'inline';
-
+    
         console.log("[Update Nav Buttons] isHostClient:", isHostClient, "currentBookDisplayIndex:", currentBookDisplayIndex, "total books:", displayedBooksOrder.length); // DEBUG
-
+    
         if (isHostClient) {
             prevBookButton.disabled = currentBookDisplayIndex === 0;
             nextBookButton.disabled = currentBookDisplayIndex >= displayedBooksOrder.length - 1;
@@ -614,10 +628,25 @@ document.addEventListener('DOMContentLoaded', function() {
             nextBookButton.disabled = true;
         }
         
+        // 更新當前故事本顯示
+        const allBooks = document.querySelectorAll('.book');
+        allBooks.forEach((book, index) => {
+            book.classList.remove('active', 'previous', 'next');
+            
+            if (index === currentBookDisplayIndex) {
+                book.classList.add('active');
+            } else if (index < currentBookDisplayIndex) {
+                book.classList.add('previous');
+            } else {
+                book.classList.add('next');
+            }
+        });
+        
         if (bookPaginationInfo) {
             bookPaginationInfo.textContent = `第 ${currentBookDisplayIndex + 1} / ${displayedBooksOrder.length} 本`;
         }
     }
+    
 
     if (prevBookButton) {
         prevBookButton.addEventListener('click', () => {

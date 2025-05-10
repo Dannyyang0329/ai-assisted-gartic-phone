@@ -1128,35 +1128,27 @@ body.room-page {
     display: flex; /* 新增 */
     flex-direction: column; /* 新增 */
     align-items: center; /* 新增 */
+    flex-grow: 1; /* 新增：讓 card-body 填滿可用空間 */
+    min-height: 0; /* 新增：配合 flex-grow */
+    overflow: hidden; /* 新增：防止內部元素溢出影響佈局 */
 }
 
 /* 新增：書本導覽樣式 */
 .book-navigation {
+    background-color: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08); /* 修改陰影方向 */
     display: flex;
     justify-content: center; /* MODIFIED: Center all items */
     align-items: center;
     flex-wrap: wrap; /* ADDED: Allow wrapping on smaller screens */
     gap: 1rem; /* ADDED: Space between all items */
     width: 100%;
-    max-width: 700px; /* MODIFIED: Increased max-width to accommodate more buttons */
-    margin-bottom: 1rem;
-    padding: 0 0.5rem; 
-}
-
-.book-navigation .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-}
-
-.book-navigation .btn svg {
-    width: 16px;
-    height: 16px;
-    vertical-align: middle;
-}
-
-.book-navigation .btn span {
-    vertical-align: middle;
-    margin: 0 0.3rem;
+    box-sizing: border-box; /* 新增：確保 padding 和 border 不會影響總寬度 */
+    flex-shrink: 0; /* 新增：防止導覽列被壓縮 */
+    border-top: 1px solid #e9ecef; /* 新增：頂部邊框分隔 */
+    margin-top: auto; /* 新增：將其推至底部 */
 }
 
 #book-pagination-info {
@@ -1166,97 +1158,245 @@ body.room-page {
 }
 
 #books-container {
-    /* display: grid; */ /* 移除 grid，因為一次只顯示一個 */
-    /* grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); */ /* 移除 */
-    /* gap: 1.5rem; */ /* 移除 */
     width: 100%;
     padding-bottom: 0.5rem;
     display: flex; /* 使內部 .book 元素可以居中或對齊 */
     justify-content: center; /* 居中顯示單個書本 */
+    perspective: 1200px; /* 添加3D視角 */
+    position: relative;
+    flex-grow: 1; /* 新增：讓書本容器填滿可用空間 */
+    overflow-y: auto; /* 新增：內容超出時滾動 */
+    min-height: 300px; /* 新增：給一個最小高度，避免內容過少時太扁 */
+    padding: 1rem; /* 新增：內部留白 */
+    box-sizing: border-box;
 }
 
-/* 書本項目樣式 */
+/* 書本樣式 */
 .book {
-    background-color: #f9f9f9;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
+    background-color: #fffef8; /* 米黃色紙張質感 */
+    border-radius: 12px;
     position: relative;
-    padding: 1.5rem;
-    border: 1px solid #eee;
-    width: 90%; /* 設定寬度為80% */
-    margin: 0 auto; /* 確保水平居中，即使父容器不是flex center */
+    padding: 1.8rem 2rem;
+    width: 90%;
+    margin: 0 auto;
+    box-shadow: 
+        0 1px 2px rgba(0,0,0,0.07), 
+        0 2px 4px rgba(0,0,0,0.07), 
+        0 4px 8px rgba(0,0,0,0.07), 
+        0 8px 16px rgba(0,0,0,0.07),
+        0 0 0 1px rgba(0,0,0,0.05);
+    border: none;
+    transform-origin: center center;
+    transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                opacity 0.6s ease, 
+                box-shadow 0.6s ease;
+    animation: bookAppear 0.8s ease forwards;
+    position: absolute;
+    left: 0;
+    right: 0;
+    opacity: 0; /* 初始不可見 */
+    transform: translateY(30px) rotateX(10deg) scale(0.95);
+}
+
+.book.active {
+    opacity: 1;
+    transform: translateY(0) rotateX(0) scale(1);
+    z-index: 2;
+}
+
+.book.previous {
+    transform: translateX(-80px) rotateY(10deg) scale(0.9);
+    opacity: 0;
+    z-index: 1;
+}
+
+.book.next {
+    transform: translateX(80px) rotateY(-10deg) scale(0.9);
+    opacity: 0;
+    z-index: 1;
+}
+
+@keyframes bookAppear {
+    0% { opacity: 0; transform: translateY(30px) rotateX(10deg) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+}
+
+/* 書本頁面紋理背景 */
+.book::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h100v100H0z' fill='%23f5f5f0' fill-opacity='0.4'/%3E%3Cpath fill='%23d9d9d9' fill-opacity='0.15' d='M0 0h50v50H0z'/%3E%3Cpath fill='%23d9d9d9' fill-opacity='0.15' d='M50 50h50v50H50z'/%3E%3C/svg%3E");
+    opacity: 0.4;
+    z-index: -1;
+    pointer-events: none;
 }
 
 .book h4 {
     margin: 0 0 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid #eee;
-    color: var(--dark);
-    font-size: 1.2rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 2px solid #e6e0d4;
+    color: #453e33;
+    font-size: 1.3rem;
+    text-align: center;
+    font-weight: 700;
+    position: relative;
+    letter-spacing: 0.02em;
+}
+
+/* 書本標題裝飾線 */
+.book h4::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
 }
 
 .book-progress-line {
     position: absolute;
-    left: 2rem;
-    top: 5rem;
-    bottom: 1.5rem;
-    width: 2px;
-    background-color: #eee;
+    left: 2.5rem;
+    top: 6rem;
+    bottom: 1.8rem;
+    width: 3px;
+    background: linear-gradient(to bottom, 
+        rgba(93, 95, 239, 0.15) 0%,
+        rgba(44, 204, 228, 0.15) 50%,
+        rgba(6, 214, 160, 0.15) 100%);
+    border-radius: 3px;
     z-index: 0;
+    box-shadow: 0 0 5px rgba(93, 95, 239, 0.1);
 }
 
 .book-item {
     position: relative;
     display: flex;
-    margin-bottom: 1.5rem;
-    padding-left: 1rem;
+    margin-bottom: 2rem;
+    padding-left: 1.5rem;
     z-index: 1;
+    animation: fadeInUp 0.5s ease forwards;
+    opacity: 0;
+    animation-delay: calc(0.1s * var(--item-index, 0));
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.book-item::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 12px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: white;
+    border: 3px solid #e6e0d4;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.book-item:hover::before {
+    transform: scale(1.1);
+    border-color: var(--primary);
 }
 
 .book-item-tag {
     flex-shrink: 0;
-    padding: 0.3rem 0.7rem;
+    padding: 0.4rem 1rem;
     border-radius: 100px;
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.85rem;
+    font-weight: 600;
     height: fit-content;
-    margin-right: 1rem;
+    margin-right: 1.2rem;
     white-space: nowrap;
+    letter-spacing: 0.03em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 .tag-prompt { 
-    background-color: rgba(92, 95, 239, 0.15); 
-    color: var(--primary); 
+    background: linear-gradient(135deg, rgba(92, 95, 239, 0.15) 0%, rgba(92, 95, 239, 0.25) 100%); 
+    color: var(--primary);
+    border: 1px solid rgba(92, 95, 239, 0.2);
 }
 
 .tag-drawing { 
-    background-color: rgba(44, 204, 228, 0.15); 
+    background: linear-gradient(135deg, rgba(44, 204, 228, 0.15) 0%, rgba(44, 204, 228, 0.25) 100%);
     color: var(--secondary); 
+    border: 1px solid rgba(44, 204, 228, 0.2);
 }
 
 .tag-guess { 
-    background-color: rgba(6, 214, 160, 0.15); 
+    background: linear-gradient(135deg, rgba(6, 214, 160, 0.15) 0%, rgba(6, 214, 160, 0.25) 100%);
     color: var(--success); 
+    border: 1px solid rgba(6, 214, 160, 0.2);
 }
 
 .book-item-content {
     flex-grow: 1;
     background-color: white;
-    padding: 1rem;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-xs);
+    padding: 1.2rem;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.book-item-content:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.book-item-content p {
+    margin: 0 0 0.8rem;
+    line-height: 1.6;
+}
+
+.book-item-content p strong {
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .book-drawing {
     display: block;
-    width: auto; /* Allow aspect-ratio to determine width based on height, constrained by max-width */
-    height: 400px; /* MODIFIED: Set a target height for the image to be larger */
-    max-width: 100%; /* Ensures the image does not overflow its parent container's width */
-    aspect-ratio: 1.85 / 1; 
-    object-fit: contain;   
-    margin: 0.5rem auto 0;
+    width: auto;
+    height: 400px;
+    max-width: 100%;
+    aspect-ratio: 1.85 / 1;
+    object-fit: contain;
+    margin: 0.8rem auto 0;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
     border: 1px solid #eee;
-    border-radius: var(--radius-xs);
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(240, 240, 240, 0.2),
+        rgba(240, 240, 240, 0.2) 10px,
+        rgba(245, 245, 245, 0.3) 10px,
+        rgba(245, 245, 245, 0.3) 20px
+    );
+    padding: 0.5rem;
+}
+
+.book-drawing:hover {
+    transform: scale(1.02);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* ------------- 11. 表單和按鈕 ------------- */
@@ -1619,4 +1759,176 @@ body.room-page {
         padding: 0.9rem 1.5rem;
         font-size: 1rem;
     }
+
+    #results-area .book-navigation {
+        padding: 0.5rem 0.3rem;
+        gap: 0.5rem; /* 減少小螢幕上的間距 */
+    }
+    #books-container {
+        padding: 0.5rem; /* 調整小螢幕上的內部留白 */
+    }
+}
+
+/* 美化 results-area 的 card-header，參考 drawing-main-area 的 card-header */
+#results-area .card-header {
+    background: linear-gradient(to right, #fdfdff, #f8f9ff);
+    padding: 0.75rem 1.2rem;
+    text-align: center;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+}
+#results-area .card-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* 美化書本導覽列 book-navigation */
+.book-navigation {
+    background-color: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    box-shadow: 0 -2px 8px rgba(93,95,239,0.06); /* 修改陰影方向 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    border-top: 1px solid #e9ecef; /* Keep this for separation */
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0; /* Ensure it doesn't shrink */
+    margin-top: auto; /* Push to bottom */
+}
+
+.book-navigation .btn {
+    margin: 0;
+    border-radius: 10px;
+    padding: 0.55rem 1.3rem;
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s, border 0.2s, transform 0.16s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.book-navigation .btn:disabled,
+.book-navigation .btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    color: #aaa;
+    background: #f7f7fb;
+    border: 1.5px solid #ececec;
+    box-shadow: none;
+    transform: none;
+}
+.book-navigation .btn:hover:not(:disabled) {
+    background: linear-gradient(90deg, #eef2ff 0%, #e3f6fa 100%);
+    color: #2e589e;
+    border: 1.5px solid var(--primary);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 2px 8px rgba(93,95,239,0.13);
+}
+
+.book-navigation .btn-primary {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    border: none;
+    box-shadow: 0 2px 12px rgba(93,95,239,0.10);
+}
+.book-navigation .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+    color: #fff;
+    transform: translateY(-2px) scale(1.03);
+}
+
+.book-navigation .btn svg {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    stroke: var(--primary);
+    stroke-width: 2.2;
+    margin-bottom: 2px;
+    transition: stroke 0.2s;
+}
+.book-navigation .btn:hover svg {
+    stroke: var(--secondary);
+}
+
+.book-navigation #book-pagination-info {
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 0.3rem 0.8rem; /* 調整 padding */
+    color: var(--primary);
+    letter-spacing: 0.02em;
+    background: #f5f7fa;
+    border-radius: 8px;
+    border: 1px solid #e0e4ef;
+    min-width: 70px; /* 調整最小寬度 */
+    text-align: center;
+}
+
+/* 修改書本導覽列按鈕色系 */
+/* 翻頁按鈕使用淺藍色系 */
+.book-navigation .btn.btn-nav {
+    background: #edf5ff;
+    color: #3b6cb7;
+    border: 1.5px solid #d0e1fb;
+    box-shadow: 0 1px 4px rgba(59, 108, 183, 0.07);
+}
+
+.book-navigation .btn.btn-nav:hover:not(:disabled) {
+    background: linear-gradient(90deg, #e1eeff 0%, #d5ebff 100%);
+    color: #2e589e;
+    border: 1.5px solid #a8c6f0;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 2px 8px rgba(59, 108, 183, 0.13);
+}
+
+.book-navigation .btn.btn-nav:disabled {
+    opacity: 0.55;
+    color: #a0b4d6;
+    background: #f0f5ff;
+    border: 1.5px solid #e0e8f7;
+    box-shadow: none;
+    transform: none;
+}
+
+.book-navigation .btn.btn-nav svg {
+    stroke: #3b6cb7;
+}
+
+.book-navigation .btn.btn-nav:hover:not(:disabled) svg {
+    stroke: #2e589e;
+}
+
+/* 離開按鈕使用不同色系 - 淺紅色系 */
+.book-navigation .btn.btn-exit {
+    background: #ffeeee;
+    color: #d44;
+    border: 1.5px solid #ffc8c8;
+    box-shadow: 0 1px 4px rgba(233, 76, 76, 0.08);
+    margin-left: 0.5rem; /* 增加與翻頁按鈕的分隔 */
+}
+
+.book-navigation .btn.btn-exit:hover {
+    background: #ffe0e0;
+    color: #c33;
+    border: 1.5px solid #ffb0b0;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(233, 76, 76, 0.15);
+}
+
+/* 修復一般按鈕樣式 - 不變的部分 */
+.book-navigation .btn {
+    margin: 0;
+    border-radius: 10px;
+    padding: 0.55rem 1.3rem;
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s, border 0.2s, transform 0.16s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
