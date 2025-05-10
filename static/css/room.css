@@ -965,42 +965,156 @@ body.room-page {
 }
 
 /* ------------- 9. 猜測區域 ------------- */
-#prompt-to-draw {
-    font-size: 1.1rem; /* 調整字體大小 */
-    color: var(--dark-muted); /* 使用較柔和的深色 */
+#guess-input-area .card {
+    flex-direction: column; /* 垂直排列內容 */
+    padding: 0; /* 移除內邊距讓內容撐滿 */
+    overflow: hidden; /* 防止溢出 */
+    height: 100%; /* 確保卡片撐滿容器 */
+}
+
+#guess-input-area .card-header {
+    padding: 0.75rem 1.2rem; 
+    border-bottom: 1px solid #f1f1f1;
+    flex-shrink: 0;
+    background: linear-gradient(to right, #fdfdff, #f8f9ff);
+    text-align: center;
+}
+
+/* 新增：為猜測區域的標題 h3 添加樣式，參考 #prompt-to-draw */
+#guess-input-area .card-header h3 {
+    font-size: 1.1rem;
+    color: var(--dark-muted);
     font-weight: 500;
-    background-color: #f8f9fa; /* 淡雅的背景色 */
-    padding: 0.5rem 1.5rem; /* 增加內距 */
-    border-radius: var(--radius-md); /* 圓角 */
-    border: 1px solid #e9ecef; /* 細邊框 */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* 微妙的陰影 */
-    text-align: center; /* 文本居中 */
-    margin: 0;
+    background-color: #f8f9fa;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    margin: 0; /* 移除 h3 的預設邊距 */
     display: inline-block; /* 使其能水平居中且有背景 */
     max-width: 90%; /* 避免過長 */
 }
 
-#prompt-to-draw span {
-    color: var(--primary);
-    font-weight: 700; /* 強調提示詞 */
-    padding: 0.2rem 0.5rem; /* 提示詞的內距 */
-    border-radius: var(--radius-sm); /* 提示詞的圓角 */
+#prompt-to-draw {
+    font-size: 1.1rem;
+    color: var(--dark-muted);
+    font-weight: 500;
+    background-color: #f8f9fa;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    margin: 0;
+    display: inline-block;
+    max-width: 90%;
 }
 
+#guess-input-area .card-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 1rem; 
+    align-items: center;
+    gap: 0.25rem; /* MODIFIED: Reduced gap to bring elements closer */
+    overflow-y: auto;
+}
+
+/* 圖片容器美化 */
 #image-to-guess-container {
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto 1.5rem auto;
+    width: 80%;
+    aspect-ratio: 1.85 / 1;
+    background-color: white;
+    border: 2px solid #e0e4e9;
+    border-radius: 12px;
+    margin: 0 auto 0 auto; /* MODIFIED: Removed bottom margin */
+    overflow: hidden;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    flex-grow: 1; 
+    max-height: 70vh; 
 }
 
 #image-to-guess {
     width: 100%;
-    max-height: 500px;
-    object-fit: contain;
-    border: 2px solid #dee2e6;
-    border-radius: var(--radius-md);
-    background-color: white;
-    box-shadow: var(--shadow-subtle);
+    height: 100%;
+    object-fit: contain;  /* MODIFIED: Changed from cover to ensure full image visibility */
+    /* border-radius: var(--radius-sm); REMOVED: Container has border-radius, not needed for 'contain' */
+    transition: all 0.2s ease;
+}
+
+#image-to-guess-container:hover {
+    border-color: #ccd2dd;
+}
+
+/* 
+#image-to-guess-container:hover #image-to-guess {
+    transform: scale(1.01); 
+}
+*/
+
+/* 新增：猜測操作行樣式 */
+.guess-action-row {
+    display: flex;
+    width: 80%;
+    gap: 1rem; /* 輸入框與按鈕之間的間距 */
+    align-items: center; /* 垂直居中對齊 */
+    margin: 1rem 0;
+}
+
+.guess-action-row .form-group {
+    flex-grow: 1; /* 讓輸入框組填滿剩餘空間 */
+    margin-bottom: 0; /* 移除 form-group 可能的預設底部邊距 */
+    min-width: 0; /* 允許縮小 */
+}
+
+/* 猜測輸入區域 */
+#guess-input-area #guess-input {
+    padding: 0.9rem 1.2rem; /* MODIFIED: Adjusted padding, icon might be removed or handled differently if needed */
+    font-size: 1rem; 
+    font-weight: 500;
+    border: 2px solid rgba(93, 95, 239, 0.2);
+    border-radius: 12px;
+    background-color: #f9faff;
+    box-shadow: 0 4px 10px rgba(93, 95, 239, 0.1);
+    transition: all 0.3s ease;
+    width: 100%; /* 填滿其父容器 .form-group */
+    flex-shrink: 0; 
+}
+
+#guess-input-area #guess-input:focus {
+    background-color: #ffffff;
+    border-color: rgba(93, 95, 239, 0.4);
+    box-shadow: 0 6px 15px rgba(93, 95, 239, 0.15);
+    transform: translateY(-2px);
+    outline: none;
+}
+
+#guess-input-area #guess-input::placeholder {
+    color: #b4b5c8;
+    font-weight: normal;
+    font-style: italic;
+}
+
+#guess-input-area #submit-guess-button {
+    min-width: 160px; /* MODIFIED: Adjusted min-width if necessary for side-by-side layout */
+    padding: 0.8rem 1.2rem; /* MODIFIED: Adjusted padding for compactness */
+    margin-top: 0; 
+    font-size: 1rem; 
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    box-shadow: 0 8px 20px rgba(93, 95, 239, 0.3);
+    transition: all 0.4s ease;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0; 
 }
 
 /* ------------- 10. 結果顯示 ------------- */
@@ -1112,7 +1226,7 @@ body.room-page {
 #prompt-input,
 #guess-input {
     width: 100%;
-    max-width: 450px;
+    /* max-width: 450px; */
     padding: 0.8rem 1rem;
     border: 1px solid #ced4da;
     border-radius: var(--radius-sm);
@@ -1200,7 +1314,7 @@ body.room-page {
 #prompt-input-area #submit-prompt-button,
 #drawing-area #submit-drawing-button,
 #guess-input-area #submit-guess-button {
-    min-width: 220px;
+    min-width: 120px;
     font-weight: 600;
     border-radius: 12px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -1402,6 +1516,12 @@ body.room-page {
     #line-width {
         width: 100px;
     }
+    
+    #image-to-guess-container {
+        max-width: 100%;
+        max-height: 50vh;
+        aspect-ratio: 1 / 1;  /* 保持正方形比例 */
+    }
 }
 
 @media (max-width: 768px) {
@@ -1446,5 +1566,19 @@ body.room-page {
     
     #prompt-input-area .card-header h3 {
         font-size: 1.5rem;
+    }
+    
+    #image-to-guess-container {
+        max-height: 40vh;
+    }
+    
+    #guess-input-area #guess-input {
+        padding: 0.9rem 1.2rem;
+        font-size: 1rem;
+    }
+    
+    #guess-input-area #submit-guess-button {
+        padding: 0.9rem 1.5rem;
+        font-size: 1rem;
     }
 }

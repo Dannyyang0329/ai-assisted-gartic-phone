@@ -186,13 +186,14 @@
                         </div>
                         <div class="card-body">
                             <div id="image-to-guess-container" class="image-container">
-                                <p>這是什麼？</p>
                                 <img id="image-to-guess" src="" alt="等待繪畫...">
                             </div>
-                            <div class="form-group">
-                                <input id="guess-input" type="text" placeholder="輸入你的猜測..." class="form-input">
+                            <div class="guess-action-row"> <!-- ADDED WRAPPER -->
+                                <div class="form-group">
+                                    <input id="guess-input" type="text" placeholder="輸入你的猜測..." class="form-input">
+                                </div>
+                                <button id="submit-guess-button" class="btn btn-primary">提交猜測</button> <!-- MODIFIED: Removed btn-block -->
                             </div>
-                            <button id="submit-guess-button" class="btn btn-primary btn-block">提交猜測</button>
                         </div>
                     </div>
                 </div>
