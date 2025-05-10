@@ -202,18 +202,29 @@
                 <div id="results-area" class="game-stage-area hidden">
                     <div class="card game-card results-card">
                         <div class="card-header">
-                            <h2>遊戲結束！結果如下</h2>
-                            <p class="results-desc">每本故事本展示了創意如何經由多個玩家傳遞和演變</p>
+                            <h3>遊戲結果 - 故事本</h3>
                         </div>
                         <div class="card-body">
-                            <div id="books-container" class="books-container"></div>
-                            <div class="results-actions">
-                                <button onclick="window.location.href='/'" class="btn btn-secondary">返回大廳</button>
-                                <button onclick="shareResults()" class="btn btn-primary">分享結果</button> <!-- shareResults is now in JS file, ensure it's globally accessible or re-attach event -->
+                            <div id="books-container">
+                                <!-- 故事本將由 JavaScript 動態載入這裡 -->
+                            </div>
+                            <div class="book-navigation">
+                                <button id="prev-book-button" class="btn btn-secondary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                                    <span>上一個故事</span>
+                                </button>
+                                <span id="book-pagination-info"></span>
+                                <button id="next-book-button" class="btn btn-secondary">
+                                    <span>下一個故事</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                                <button onclick="window.location.reload()" class="btn btn-primary">再玩一次</button>
+                                <button onclick="shareResults()" class="btn btn-secondary">分享結果</button>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>

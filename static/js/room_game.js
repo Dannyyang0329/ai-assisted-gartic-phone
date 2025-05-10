@@ -121,10 +121,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitGuessButton = document.getElementById('submit-guess-button');
     const resultsArea = document.getElementById('results-area');
     const booksContainer = document.getElementById('books-container');
+    // 新增：故事書導覽按鈕和資訊
+    const prevBookButton = document.getElementById('prev-book-button');
+    const nextBookButton = document.getElementById('next-book-button');
+    const bookPaginationInfo = document.getElementById('book-pagination-info');
 
     // 遊戲狀態變數
     let currentGameState = 'waiting';
     let myPlayerId = null;
+    let isHostClient = false; // 新增：追蹤此客戶端是否為主持人
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
@@ -140,6 +145,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Undo/Redo stacks
     let undoStack = [];
     let redoStack = [];
+
+    // 新增：故事書顯示相關變數
+    let displayedBooksOrder = [];
+    let allBooksPayload = null;
+    let currentBookDisplayIndex = 0;
+
 
     // 初始化畫布
     context.lineCap = 'round';
@@ -188,6 +199,21 @@ document.addEventListener('DOMContentLoaded', function() {
         switch (messageType) {
             case 'game_state_update':
                 myPlayerId = payload.your_player_id || myPlayerId; 
+                console.log("game_state_update: myPlayerId is now:", myPlayerId); // DEBUG
+                if (myPlayerId && payload.players && payload.players[myPlayerId]) {
+                    const playerEntry = payload.players[myPlayerId];
+                    console.log("game_state_update: Player entry for host check:", playerEntry); // DEBUG
+                    console.log("game_state_update: isHost property from payload:", playerEntry.isHost); // DEBUG
+                    isHostClient = playerEntry.isHost || false; // 根據 payload 更新 isHostClient
+                    console.log("game_state_update: isHostClient set to:", isHostClient, "for player:", myPlayerId); // DEBUG
+                } else {
+                    console.warn("game_state_update: Could not determine host status. Conditions for host check not fully met."); // DEBUG
+                    console.warn("game_state_update: myPlayerId:", myPlayerId, "payload.players:", payload.players); // DEBUG
+                    if (payload.players && myPlayerId) {
+                        console.warn("game_state_update: payload.players[myPlayerId]:", payload.players[myPlayerId]); // DEBUG
+                    }
+                    // isHostClient is not set to false here to allow subsequent messages to potentially set it correctly
+                }
                 updateUI(payload);
                 break;
             case 'assign_prompt': // New: Server assigns task to submit a prompt
@@ -200,7 +226,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 showGuessInput(payload.drawing_data, payload.round);
                 break;
             case 'game_over':
-                showResults(payload);
+                showResults(payload); // showResults 內部會更新 isHostClient 並調用 updateBookNavigationButtons
+                break;
+            case 'update_displayed_book': // 新增：處理書本導覽更新
+                if (payload && typeof payload.book_index === 'number') {
+                    currentBookDisplayIndex = payload.book_index;
+                    renderCurrentBook(); 
+                    updateBookNavigationButtons(); // 使用已更新的 isHostClient
+                }
                 break;
             case 'clear_canvas_instruction':
                 clearLocalCanvas();
@@ -433,80 +466,187 @@ document.addEventListener('DOMContentLoaded', function() {
         resultsArea.classList.remove('hidden');
         resultsArea.classList.add('fade-in-animation');
         
-        booksContainer.innerHTML = ''; 
+        if (payload.your_player_id) {
+            myPlayerId = payload.your_player_id;
+            console.log("showResults: myPlayerId updated from game_over payload to:", myPlayerId); // DEBUG
+        }
         
-        // Use turn_order to display books consistently
-        const orderedPlayerIds = payload.turn_order || Object.keys(payload.books);
+        allBooksPayload = payload; 
+        
+        console.log("showResults: Full payload received for game_over:", JSON.stringify(payload, null, 2)); // DEBUG
+        console.log("showResults: myPlayerId before host check:", myPlayerId); // DEBUG
 
-        orderedPlayerIds.forEach((originalPlayerId, bookIndex) => {
-            const bookData = payload.books[originalPlayerId];
-            if (!bookData) return;
+        if (myPlayerId && payload.players && typeof payload.players === 'object' && payload.players[myPlayerId]) {
+            const playerEntry = payload.players[myPlayerId]; 
+            console.log("showResults: Player entry for host check (payload.players[myPlayerId]):", JSON.stringify(playerEntry, null, 2)); // DEBUG
+            console.log("showResults: Direct isHost property from payload (playerEntry.isHost):", playerEntry.isHost); // DEBUG
 
-            const bookDiv = document.createElement('div');
-            bookDiv.className = 'book';
-            
-            const bookTitle = document.createElement('h4');
-            const initiatorName = payload.players[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
-            bookTitle.textContent = `${initiatorName} 的故事本 #${bookIndex + 1}`;
-            bookDiv.appendChild(bookTitle);
+            isHostClient = playerEntry.isHost || false; // 根據 payload 更新 isHostClient
+            console.log("showResults: isHostClient determined in IF branch:", isHostClient, "for player:", myPlayerId); // DEBUG
+        } else {
+            console.warn("showResults: Could not determine host status (ELSE branch). Conditions not met for host check."); // DEBUG
+            console.warn("showResults: myPlayerId:", myPlayerId); // DEBUG
+            console.warn("showResults: payload.players type:", typeof payload.players); // DEBUG
+            console.warn("showResults: payload.players content:", JSON.stringify(payload.players, null, 2)); // DEBUG
+            if (payload.players && myPlayerId) {
+                console.warn("showResults: payload.players[myPlayerId] (if players is object):", payload.players ? payload.players[myPlayerId] : "payload.players is not an object or undefined"); // DEBUG
+            }
+            isHostClient = false; 
+            console.log("showResults: isHostClient defaulted to false in ELSE branch."); // DEBUG
+        }
 
-            const progressLine = document.createElement('div');
-            progressLine.className = 'book-progress-line';
-            bookDiv.appendChild(progressLine);
+        displayedBooksOrder = payload.turn_order || Object.keys(payload.books || {});
 
-            bookData.forEach((item, itemIndex) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'book-item';
+        currentBookDisplayIndex = 0; 
 
-                const itemPlayerId = item.player;
-                const itemPlayerName = payload.players[itemPlayerId]?.name || `玩家 ${itemPlayerId.substring(0,4)}`;
+        if (payload.initial_book_index !== undefined) { 
+            currentBookDisplayIndex = payload.initial_book_index;
+        }
 
-                const typeTag = document.createElement('div');
-                typeTag.className = 'book-item-tag';
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'book-item-content';
 
-                // Display round number for drawing and guess
-                let roundText = "";
-                if (item.round > 0) { // round 0 is initial prompt
-                    roundText = ` (第 ${item.round} 回合)`;
-                }
-
-                if (item.type === 'prompt') {
-                    typeTag.textContent = '題目';
-                    typeTag.classList.add('tag-prompt');
-                    const contentText = document.createElement('p');
-                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 提出了題目：<br>"${item.data}"`;
-                    contentDiv.appendChild(contentText);
-                } else if (item.type === 'drawing') {
-                    typeTag.textContent = '繪畫';
-                    typeTag.classList.add('tag-drawing');
-                    
-                    const contentText = document.createElement('p');
-                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了${roundText}：`;
-                    contentDiv.appendChild(contentText);
-                    
-                    const img = document.createElement('img');
-                    img.src = item.data;
-                    img.alt = `${itemPlayerName} 的繪畫`;
-                    img.className = 'book-drawing';
-                    contentDiv.appendChild(img);
-                } else if (item.type === 'guess') {
-                    typeTag.textContent = '猜測';
-                    typeTag.classList.add('tag-guess');
-                    const contentText = document.createElement('p');
-                    contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是${roundText}：<br>"${item.data}"`;
-                    contentDiv.appendChild(contentText);
-                }
-                
-                itemDiv.appendChild(typeTag);
-                itemDiv.appendChild(contentDiv);
-                bookDiv.appendChild(itemDiv);
-            });
-            booksContainer.appendChild(bookDiv);
-        });
+        if (displayedBooksOrder.length > 0) {
+            renderCurrentBook();
+        } else {
+            booksContainer.innerHTML = '<p>沒有故事本可以顯示。</p>';
+        }
+        updateBookNavigationButtons(); // 調用更新按鈕狀態的函數
+        
         showStatusMessage("遊戲結束！查看結果。", "finished");
+    }
+
+    function renderCurrentBook() {
+        booksContainer.innerHTML = ''; // 清空現有的書本
+
+        if (!allBooksPayload || displayedBooksOrder.length === 0) {
+            return;
+        }
+
+        const originalPlayerId = displayedBooksOrder[currentBookDisplayIndex];
+        const bookData = allBooksPayload.books[originalPlayerId];
+        const playersData = allBooksPayload.players; // 從 payload 中獲取玩家數據
+
+        if (!bookData) return;
+
+        const bookDiv = document.createElement('div');
+        bookDiv.className = 'book';
+        
+        const bookTitle = document.createElement('h4');
+        const initiatorName = playersData[originalPlayerId]?.name || `玩家 ${originalPlayerId.substring(0,4)}`;
+        // 移除書本索引，因為我們有分頁信息
+        bookTitle.textContent = `${initiatorName} 的故事本`;
+        bookDiv.appendChild(bookTitle);
+
+        const progressLine = document.createElement('div');
+        progressLine.className = 'book-progress-line';
+        bookDiv.appendChild(progressLine);
+
+        bookData.forEach((item, itemIndex) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'book-item';
+
+            const itemPlayerId = item.player;
+            const itemPlayerName = playersData[itemPlayerId]?.name || `玩家 ${itemPlayerId.substring(0,4)}`;
+
+            const typeTag = document.createElement('div');
+            typeTag.className = 'book-item-tag';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'book-item-content';
+
+            let roundText = "";
+            if (item.round > 0) {
+                roundText = ` (第 ${item.round} 回合)`;
+            }
+
+            if (item.type === 'prompt') {
+                typeTag.textContent = '題目';
+                typeTag.classList.add('tag-prompt');
+                const contentText = document.createElement('p');
+                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 提出了題目：<br>"${item.data}"`;
+                contentDiv.appendChild(contentText);
+            } else if (item.type === 'drawing') {
+                typeTag.textContent = '繪畫';
+                typeTag.classList.add('tag-drawing');
+                
+                const contentText = document.createElement('p');
+                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 根據上一個提示畫了${roundText}：`;
+                contentDiv.appendChild(contentText);
+                
+                const img = document.createElement('img');
+                img.src = item.data;
+                img.alt = `${itemPlayerName} 的繪畫`;
+                img.className = 'book-drawing';
+                contentDiv.appendChild(img);
+            } else if (item.type === 'guess') {
+                typeTag.textContent = '猜測';
+                typeTag.classList.add('tag-guess');
+                const contentText = document.createElement('p');
+                contentText.innerHTML = `<strong>${itemPlayerName}</strong> 猜測這是${roundText}：<br>"${item.data}"`;
+                contentDiv.appendChild(contentText);
+            }
+            
+            itemDiv.appendChild(typeTag);
+            itemDiv.appendChild(contentDiv);
+            bookDiv.appendChild(itemDiv);
+        });
+        booksContainer.appendChild(bookDiv);
+    }
+
+    function updateBookNavigationButtons() {
+        if (displayedBooksOrder.length === 0) {
+            prevBookButton.style.display = 'none';
+            nextBookButton.style.display = 'none';
+            bookPaginationInfo.style.display = 'none';
+            return;
+        }
+
+        prevBookButton.style.display = 'inline-flex';
+        nextBookButton.style.display = 'inline-flex';
+        bookPaginationInfo.style.display = 'inline';
+
+        console.log("[Update Nav Buttons] isHostClient:", isHostClient, "currentBookDisplayIndex:", currentBookDisplayIndex, "total books:", displayedBooksOrder.length); // DEBUG
+
+        if (isHostClient) {
+            prevBookButton.disabled = currentBookDisplayIndex === 0;
+            nextBookButton.disabled = currentBookDisplayIndex >= displayedBooksOrder.length - 1;
+        } else {
+            prevBookButton.disabled = true;
+            nextBookButton.disabled = true;
+        }
+        
+        if (bookPaginationInfo) {
+            bookPaginationInfo.textContent = `第 ${currentBookDisplayIndex + 1} / ${displayedBooksOrder.length} 本`;
+        }
+    }
+
+    if (prevBookButton) {
+        prevBookButton.addEventListener('click', () => {
+            console.log("[Prev Button Click] isHostClient:", isHostClient, "currentBookDisplayIndex:", currentBookDisplayIndex); // DEBUG
+            if (isHostClient && currentBookDisplayIndex > 0) {
+                // 主持人點擊，發送訊息到伺服器
+                console.log('[Host Action] Sending navigate_book: prev');
+                sendMessage('navigate_book', { direction: 'prev' });
+            } else if (!isHostClient) {
+                console.log("[Prev Button Click] Not host. Button should be disabled. isHostClient:", isHostClient); // DEBUG
+            } else {
+                console.log("[Prev Button Click] Host, but at boundary or other condition not met. currentBookDisplayIndex:", currentBookDisplayIndex); // DEBUG
+            }
+        });
+    }
+
+    if (nextBookButton) {
+        nextBookButton.addEventListener('click', () => {
+            console.log("[Next Button Click] isHostClient:", isHostClient, "currentBookDisplayIndex:", currentBookDisplayIndex, "displayedBooksOrder.length:", displayedBooksOrder.length); // DEBUG
+            if (isHostClient && currentBookDisplayIndex < displayedBooksOrder.length - 1) {
+                // 主持人點擊，發送訊息到伺服器
+                console.log('[Host Action] Sending navigate_book: next');
+                sendMessage('navigate_book', { direction: 'next' });
+            } else if (!isHostClient) {
+                console.log("[Next Button Click] Not host. Button should be disabled. isHostClient:", isHostClient); // DEBUG
+            } else {
+                console.log("[Next Button Click] Host, but at boundary or other condition not met. currentBookDisplayIndex:", currentBookDisplayIndex, "limit:", displayedBooksOrder.length - 1); // DEBUG
+            }
+        });
     }
     
     // 分享結果功能 (保持與原HTML一致)

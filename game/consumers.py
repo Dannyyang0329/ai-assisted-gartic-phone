@@ -477,6 +477,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 if self.user_id and self.user_id not in active_guest_ids:
                     await self.add_user_id(self.user_id)
             # 可以添加其他訊息類型處理
+            elif message_type == 'navigate_book':
+                await self.handle_navigate_book(payload)
 
         except json.JSONDecodeError:
             print(f"Error decoding JSON: {text_data}")
@@ -855,19 +857,25 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def finish_game(self):
         room = game_rooms[self.room_group_name]
         room['state'] = 'finished'
+        room['current_results_book_index'] = 0 # 初始化結果書本索引
         print(f"Room {self.room_name}: Game finished. Broadcasting results.")
 
         # Prepare payload for game_over
         # Ensure player names are included for display
         players_info_for_results = {
-            pid: {'name': pdata.get('name', pid), 'isBot': pdata.get('isBot', False)}
+            pid: {
+                'name': pdata.get('name', pid), 
+                'isBot': pdata.get('isBot', False),
+                'isHost': pdata.get('isHost', False)  # 添加 isHost 資訊
+            }
             for pid, pdata in room['players'].items()
         }
 
         game_over_payload = {
             'books': room['books'],
             'players': players_info_for_results, # Send simplified player info
-            'turn_order': room['turn_order'] # To display books in a consistent order
+            'turn_order': room['turn_order'], # To display books in a consistent order
+            'initial_book_index': room.get('current_results_book_index', 0) # 添加初始書本索引
         }
         
         await self.channel_layer.group_send(
@@ -892,6 +900,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             players_public_info[pid] = {
                 'name': pdata.get('name', pid),
                 'isBot': pdata.get('isBot', False),
+                'isHost': pdata.get('isHost', False), # 添加 isHost 資訊
                 'connected': 'channel_name' in pdata # Basic connected status
             }
             
@@ -933,6 +942,49 @@ class GameConsumer(AsyncWebsocketConsumer):
                  'sender_channel': self.channel_name # 告訴廣播函數不要發給自己
              }
          )
+
+    async def handle_navigate_book(self, payload):
+        room = game_rooms.get(self.room_group_name)
+        if not room or room['state'] != 'finished':
+            # 僅在遊戲結束狀態下允許導覽
+            logger.warning(f"Navigate book attempt in non-finished state or room not found. Room: {self.room_name}, State: {room.get('state') if room else 'N/A'}")
+            return
+
+        if self.player_id != room.get('host_id'):
+            await self.send_error("只有房主才能切換書本。")
+            return
+
+        direction = payload.get('direction')
+        current_index = room.get('current_results_book_index', 0)
+        
+        # turn_order 應該在 room['books'] 的鍵中，或者直接用 room['turn_order']
+        # 假設 displayedBooksOrder (即 room['turn_order']) 是有效的
+        num_books = len(room.get('turn_order', []))
+        if num_books == 0:
+            logger.warning(f"No books to navigate in room {self.room_name}.")
+            return
+
+
+        if direction == 'next' and current_index < num_books - 1:
+            room['current_results_book_index'] += 1
+        elif direction == 'prev' and current_index > 0:
+            room['current_results_book_index'] -= 1
+        else:
+            # 無效方向或已在邊界，不執行操作或可選擇發送錯誤
+            logger.debug(f"Navigate book: Invalid direction '{direction}' or at boundary. Index: {current_index}, NumBooks: {num_books}")
+            return
+
+        logger.info(f"Room {self.room_name}: Host {self.player_id} navigated book. New index: {room['current_results_book_index']}")
+
+        # 向房間內所有客戶端廣播新的書本索引
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'broadcast_message', # 使用現有的 broadcast_message 處理器
+                'message_type': 'update_displayed_book', # 客戶端將監聽此類型
+                'payload': {'book_index': room['current_results_book_index']}
+            }
+        )
 
     async def send_game_state_to_player(self, player_id, status_message=""):
         room = game_rooms.get(self.room_group_name)

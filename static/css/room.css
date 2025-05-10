@@ -1119,20 +1119,60 @@ body.room-page {
 
 /* ------------- 10. 結果顯示 ------------- */
 .results-card {
-    max-width: none !重要;
+    max-width: none !important; /* 修正 !important 的寫法 */
     width: 100%;
 }
 
 .results-card .card-body {
     padding: 0.5rem;
+    display: flex; /* 新增 */
+    flex-direction: column; /* 新增 */
+    align-items: center; /* 新增 */
+}
+
+/* 新增：書本導覽樣式 */
+.book-navigation {
+    display: flex;
+    justify-content: center; /* MODIFIED: Center all items */
+    align-items: center;
+    flex-wrap: wrap; /* ADDED: Allow wrapping on smaller screens */
+    gap: 1rem; /* ADDED: Space between all items */
+    width: 100%;
+    max-width: 700px; /* MODIFIED: Increased max-width to accommodate more buttons */
+    margin-bottom: 1rem;
+    padding: 0 0.5rem; 
+}
+
+.book-navigation .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.book-navigation .btn svg {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+.book-navigation .btn span {
+    vertical-align: middle;
+    margin: 0 0.3rem;
+}
+
+#book-pagination-info {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--dark-muted, #555);
 }
 
 #books-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 1.5rem;
+    /* display: grid; */ /* 移除 grid，因為一次只顯示一個 */
+    /* grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); */ /* 移除 */
+    /* gap: 1.5rem; */ /* 移除 */
     width: 100%;
     padding-bottom: 0.5rem;
+    display: flex; /* 使內部 .book 元素可以居中或對齊 */
+    justify-content: center; /* 居中顯示單個書本 */
 }
 
 /* 書本項目樣式 */
@@ -1143,6 +1183,8 @@ body.room-page {
     position: relative;
     padding: 1.5rem;
     border: 1px solid #eee;
+    width: 90%; /* 設定寬度為80% */
+    margin: 0 auto; /* 確保水平居中，即使父容器不是flex center */
 }
 
 .book h4 {
@@ -1207,18 +1249,14 @@ body.room-page {
 
 .book-drawing {
     display: block;
-    max-width: 100%;
-    max-height: 400px;
+    width: auto; /* Allow aspect-ratio to determine width based on height, constrained by max-width */
+    height: 400px; /* MODIFIED: Set a target height for the image to be larger */
+    max-width: 100%; /* Ensures the image does not overflow its parent container's width */
+    aspect-ratio: 1.85 / 1; 
+    object-fit: contain;   
     margin: 0.5rem auto 0;
     border: 1px solid #eee;
     border-radius: var(--radius-xs);
-}
-
-.results-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-top: 1rem;
 }
 
 /* ------------- 11. 表單和按鈕 ------------- */
