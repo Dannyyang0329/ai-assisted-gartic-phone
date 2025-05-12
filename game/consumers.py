@@ -8,6 +8,7 @@ import random
 from asgiref.sync import sync_to_async
 from .views import active_guest_ids  # 導入全局集合
 import math # Add math import for ceil
+from .llm_client import LLMClient, image_bytes_to_data_url, data_url_to_image_bytes # Added
 
 # 添加基本日誌設置
 logger = logging.getLogger(__name__)
@@ -16,6 +17,18 @@ logger = logging.getLogger(__name__)
 # 注意：這在多個伺服器實例下無法運作，生產環境需要更健壯的方案 (例如 Redis, 資料庫)
 game_rooms = {}
 waiting_rooms = {}
+
+# Create an instance of the LLMClient
+# This will load API keys and prompts when the Django application starts.
+try:
+    llm_client = LLMClient()
+except ValueError as e:
+    logger.error(f"Failed to initialize LLMClient: {e}")
+    llm_client = None # Set to None if initialization fails
+except Exception as e:
+    logger.error(f"An unexpected error occurred during LLMClient initialization: {e}")
+    llm_client = None
+
 
 class WaitingRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -179,8 +192,8 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
         bot_count = sum(1 for player in room['players'].values() if player.get('isBot', False))
             
         # 添加機器人
-        bot_id = f"bot_{bot_count}"
-        bot_name = "畫畫機器人" + str(bot_count)
+        bot_id = f"bot_{bot_count + 1}" # Ensure unique bot IDs if bots are removed and re-added
+        bot_name = "畫畫機器人" + str(bot_count + 1)
         room['players'][bot_id] = {
             'id': bot_id,
             'name': bot_name,
@@ -568,12 +581,27 @@ class GameConsumer(AsyncWebsocketConsumer):
 
             if player_data.get('isBot', False):
                 # Bot logic: auto-submit prompt
-                bot_prompts_list = [
-                    "一隻太空貓在月球上釣魚", "一個害羞的機器人送花", "魔法森林裡的秘密派對",
-                    "沉睡火山上的冰淇淋店", "會飛的豬在雲中賽跑", "水下城市的爵士樂隊",
-                    "時間旅行者遺失了他的手錶", "一隻愛讀書的龍", "隱形人在玩捉迷藏"
-                ]
-                bot_prompt = random.choice(bot_prompts_list) + f" (由機器人 {player_data.get('name', player_id)} 提出)"
+                bot_prompt = None
+                if llm_client:
+                    try:
+                        logger.info(f"Room {self.room_name}: Bot {player_id} attempting to generate prompt via LLM.")
+                        generated_text = await sync_to_async(llm_client.generate_text_from_text)()
+                        if generated_text and generated_text.strip():
+                            bot_prompt = generated_text.strip()
+                            logger.info(f"Room {self.room_name}: Bot {player_id} LLM generated prompt: {bot_prompt}")
+                        else:
+                            logger.warning(f"Room {self.room_name}: Bot {player_id} LLM returned empty prompt.")
+                    except Exception as e:
+                        logger.error(f"Room {self.room_name}: Bot {player_id} error generating prompt via LLM: {e}")
+                
+                if not bot_prompt: # Fallback to predefined prompts
+                    logger.info(f"Room {self.room_name}: Bot {player_id} falling back to predefined prompt.")
+                    bot_prompts_list = [
+                        "一隻太空貓在月球上釣魚", "一個害羞的機器人送花", "魔法森林裡的秘密派對",
+                        "沉睡火山上的冰淇淋店", "會飛的豬在雲中賽跑", "水下城市的爵士樂隊",
+                        "時間旅行者遺失了他的手錶", "一隻愛讀書的龍", "隱形人在玩捉迷藏"
+                    ]
+                    bot_prompt = random.choice(bot_prompts_list)
                 
                 room['books'][player_id].append({
                     'type': 'prompt',
@@ -707,13 +735,32 @@ class GameConsumer(AsyncWebsocketConsumer):
 
                 if player_data.get('isBot', False):
                     # 機器人繪畫邏輯
-                    # 使用一個簡單的SVG作為預設繪畫內容
-                    bot_drawing_placeholders = [
-                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBlNmYyIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzU1NSI+Qm90J3MgQXJ0PC90ZXh0Pjwvc3ZnPg==",
-                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZDJmMmVhIi8+PGNpcmNsZSBjeD0iMTAwIiBjeT0iNzUiIHI9IjQwIiBmaWxsPSIjZmZjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzMzMyI+Um9ib3QtRGF2aW5jaTwvdGV4dD48L3N2Zz4=",
-                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZThlMWY2Ii8+PHBhdGggZD0iTTUwIDMwIEwxNTAgMzAgTDEwMCAxMjAgWiIgZmlsbD0iI2FmY2RmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNzAlIiBkb21pbmFudC1JYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iY291cmllciIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2Njg3YiI+QklPIC1SVEZMT1c8L3RleHQ+PC9zdmc+"
-                    ]
-                    bot_drawing = random.choice(bot_drawing_placeholders)
+                    bot_drawing = None
+                    text_to_draw = item_to_process['data']
+                    if llm_client:
+                        try:
+                            logger.info(f"Room {self.room_name}: Bot {current_player_id} attempting to generate image for: '{text_to_draw}'")
+                            image_bytes = await sync_to_async(llm_client.generate_image_bytes_from_text)(text_to_draw)
+                            if image_bytes:
+                                # Convert image_bytes to data URL
+                                bot_drawing = await sync_to_async(image_bytes_to_data_url)(image_bytes, mime_type="image/png") # Assuming PNG
+                                if bot_drawing:
+                                    logger.info(f"Room {self.room_name}: Bot {current_player_id} LLM generated image successfully.")
+                                else:
+                                    logger.warning(f"Room {self.room_name}: Bot {current_player_id} failed to convert LLM image bytes to data URL.")
+                            else:
+                                logger.warning(f"Room {self.room_name}: Bot {current_player_id} LLM returned no image bytes.")
+                        except Exception as e:
+                            logger.error(f"Room {self.room_name}: Bot {current_player_id} error generating image via LLM: {e}")
+
+                    if not bot_drawing: # Fallback to placeholder SVG
+                        logger.info(f"Room {self.room_name}: Bot {current_player_id} falling back to placeholder drawing.")
+                        bot_drawing_placeholders = [
+                            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBlNmYyIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzU1NSI+Qm90J3MgQXJ0PC90ZXh0Pjwvc3ZnPg==",
+                            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZDJmMmVhIi8+PGNpcmNsZSBjeD0iMTAwIiBjeT0iNzUiIHI9IjQwIiBmaWxsPSIjZmZjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJhcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzMzMyI+Um9ib3QtRGF2aW5jaTwvdGV4dD48L3N2Zz4=",
+                            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZThlMWY2Ii8+PHBhdGggZD0iTTUwIDMwIEwxNTAgMzAgTDEwMCAxMjAgWiIgZmlsbD0iI2FmY2RmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNzAlIiBkb21pbmFudC1JYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iY291cmllciIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2Njg3YiI+QklPIC1SVEZMT1c8L3RleHQ+PC9zdmc+"
+                        ]
+                        bot_drawing = random.choice(bot_drawing_placeholders)
                     
                     room['books'][original_book_owner_id].append({
                         'type': 'drawing',
@@ -736,12 +783,33 @@ class GameConsumer(AsyncWebsocketConsumer):
 
                 if player_data.get('isBot', False):
                     # 機器人猜測邏輯
-                    bot_guess_phrases = [
-                        "一隻貓在彈吉他", "一個快樂的太陽", "跳舞的機器人", "飛碟綁架了一頭牛",
-                        "巫師在施法", "一條龍在噴火", "太空人在月球漫步", "一個巨大的甜甜圈",
-                        "唱歌的胡蘿蔔", "戴著帽子的蛇"
-                    ]
-                    bot_guess = random.choice(bot_guess_phrases) + f" (由機器人 {player_data.get('name', current_player_id)} 猜測)"
+                    bot_guess = None
+                    drawing_data_url = item_to_process['data']
+                    if llm_client:
+                        try:
+                            logger.info(f"Room {self.room_name}: Bot {current_player_id} attempting to generate guess for drawing.")
+                            # Convert data URL to image bytes
+                            image_bytes, mime_type = await sync_to_async(data_url_to_image_bytes)(drawing_data_url)
+                            if image_bytes and mime_type:
+                                generated_text = await sync_to_async(llm_client.generate_text_from_image_bytes)(image_bytes, mime_type=mime_type)
+                                if generated_text and generated_text.strip():
+                                    bot_guess = generated_text.strip()
+                                    logger.info(f"Room {self.room_name}: Bot {current_player_id} LLM generated guess: {bot_guess}")
+                                else:
+                                    logger.warning(f"Room {self.room_name}: Bot {current_player_id} LLM returned empty guess.")
+                            else:
+                                logger.warning(f"Room {self.room_name}: Bot {current_player_id} failed to convert drawing data URL to bytes for LLM.")
+                        except Exception as e:
+                            logger.error(f"Room {self.room_name}: Bot {current_player_id} error generating guess via LLM: {e}")
+                    
+                    if not bot_guess: # Fallback to predefined guesses
+                        logger.info(f"Room {self.room_name}: Bot {current_player_id} falling back to predefined guess.")
+                        bot_guess_phrases = [
+                            "一隻貓在彈吉他", "一個快樂的太陽", "跳舞的機器人", "飛碟綁架了一頭牛",
+                            "巫師在施法", "一條龍在噴火", "太空人在月球漫步", "一個巨大的甜甜圈",
+                            "唱歌的胡蘿蔔", "戴著帽子的蛇"
+                        ]
+                        bot_guess = random.choice(bot_guess_phrases)
                     
                     room['books'][original_book_owner_id].append({
                         'type': 'guess',
