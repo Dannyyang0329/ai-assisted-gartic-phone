@@ -1267,65 +1267,52 @@ document.addEventListener('DOMContentLoaded', function() {
     hideAllSections();
     // Initial status message will be set by gameSocket.onopen or first game_state_update
     // showStatusMessage('正在連接伺服器...', 'connecting'); 
+
+    // 隱藏 AI 輔助 Modal 的全局函數
+    function hideAiAssistModal() {
+        if (aiAssistModal) {
+            aiAssistModal.classList.remove('active');
+            setTimeout(() => {
+                aiAssistModal.classList.add('hidden');
+                document.body.style.overflow = ''; // 恢復背景滾動
+            }, 300); // 等待動畫完成
+        }
+    }
+
+    // 添加處理 AI 繪畫結果的函數
+    function handleAiDrawingResult(payload) {
+        if (payload.success) {
+            const context = drawingCanvasEl.getContext('2d'); // 新增：獲取 context
+
+            // 將結果圖像應用到畫布
+            const img = new Image();
+            img.onload = function() {
+                // 清除當前畫布內容
+                context.clearRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+                context.fillStyle = canvasBackgroundColor; // 使用 canvasBackgroundColor 變數
+                context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+                // 繪製新圖像
+                context.drawImage(img, 0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+                // 保存到撤銷堆疊
+                saveCanvasState();
+                showStatusMessage('AI 輔助繪畫已套用！', 'success');
+            };
+            img.onerror = function() {
+                console.error("AI 繪畫圖像載入失敗");
+                showStatusMessage('圖像載入失敗，請重試', 'error');
+            };
+            img.src = payload.image;
+        } else {
+            showStatusMessage(payload.error || 'AI 輔助繪畫處理失敗，請重試', 'error');
+        }
+
+        // 無論成功或失敗，都關閉 modal 並重設按鈕
+        hideAiAssistModal();
+        if (aiAssistSubmitBtn) {
+            aiAssistSubmitBtn.disabled = false;
+            aiAssistSubmitBtn.innerHTML = '<span class="btn-icon">✨</span><span class="btn-text">生成繪畫</span>';
+            aiAssistPrompt.value = ''; // 清空輸入框
+        }
+    }
 });
 
-// 將 hideAiAssistModal 和相關變數定義為全局函數
-let aiAssistModal;
-let aiAssistSubmitBtn;
-let aiAssistPrompt;
-
-// 隱藏 AI 輔助 Modal 的全局函數
-function hideAiAssistModal() {
-    if (aiAssistModal) {
-        aiAssistModal.classList.remove('active');
-        setTimeout(() => {
-            aiAssistModal.classList.add('hidden');
-            document.body.style.overflow = ''; // 恢復背景滾動
-        }, 300); // 等待動畫完成
-    }
-}
-
-// 添加處理 AI 繪畫結果的函數
-function handleAiDrawingResult(payload) {
-    console.log("收到 AI 繪畫結果:", payload);
-    
-    // 隱藏 AI 輔助對話框
-    hideAiAssistModal();
-    
-    // 重置按鈕狀態
-    if (aiAssistSubmitBtn) {
-        aiAssistSubmitBtn.disabled = false;
-        aiAssistSubmitBtn.innerHTML = '<span class="btn-icon">✨</span><span class="btn-text">生成繪畫</span>';
-    }
-    
-    // 重置輸入內容
-    if (aiAssistPrompt) {
-        aiAssistPrompt.value = '';
-    }
-    
-    if (payload.success) {
-        // 將結果圖像應用到畫布
-        const img = new Image();
-        img.onload = function() {
-            // 清除當前畫布內容
-            context.clearRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
-            context.fillStyle = canvasBackgroundColor;
-            context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
-            
-            // 繪製新圖像
-            context.drawImage(img, 0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
-            
-            // 保存到撤銷堆疊
-            saveCanvasState();
-            
-            showStatusMessage('AI 輔助繪畫已套用！', 'success');
-        };
-        img.onerror = function() {
-            console.error("AI 繪畫圖像載入失敗");
-            showStatusMessage('圖像載入失敗，請重試', 'error');
-        };
-        img.src = payload.image;
-    } else {
-        showStatusMessage(payload.error || 'AI 輔助繪畫處理失敗，請重試', 'error');
-    }
-}

@@ -44,7 +44,7 @@ def data_url_to_image_bytes(data_url):
 class LLMClient:
     def __init__(self):
         # Load environment variables from .env file
-        self.current_api_key_index = 1
+        self.current_api_key_index = 2
         self.api_key_list = self._init_api_key()
         if not self.api_key_list or len(self.api_key_list) == 0:
             raise ValueError("API_KEY_X environment variable not set.")
@@ -110,7 +110,7 @@ class LLMClient:
     def generate_text_from_text(self, prompt_text="請產生一個創意繪畫題目", model_name="gemini-2.0-flash"):
         config = genai.types.GenerateContentConfig(
             system_instruction=(
-                "你是一位創意繪畫題目的設計師，擅長結合情感、物品、想像力、時間、空間與抽象概念，發想出具有趣味、畫面感並帶有奇幻或哲學色彩的主題。\n"
+                "你是一位創意繪畫題目的設計師，擅長結合物品、想像力、卡通概念，發想出具有趣味、畫面感的主題。\n"
                 "請盡力避免每次輸出都與前次或常見的主題相似，發想出獨特且令人驚豔的題目。"
             ),
             safety_settings=self.safety_settings,
@@ -209,9 +209,11 @@ class LLMClient:
     def generate_image_from_image(self, image_bytes, prompt_text=None, mime_type="image/png", model_name="gemini-2.0-flash-preview-image-generation"):
         image = Image.open(io.BytesIO(image_bytes))
 
+        translated_text = self.translate_to_english(prompt_text)
+        processed_text = f"{translated_text}. Keep the same minimal line doodle style."
         response = self.client.models.generate_content(
             model=model_name,
-            contents=[prompt_text, image],
+            contents=[image, processed_text],
             config=genai.types.GenerateContentConfig(
             response_modalities=['TEXT', 'IMAGE']
             )

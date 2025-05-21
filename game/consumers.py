@@ -479,6 +479,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await self.handle_clear_canvas()
             elif message_type == 'ai_assist_drawing':
                 await self.handle_ai_assist_drawing(payload)
+            elif message_type == 'navigate_book': # 新增：處理書本導覽請求
+                await self.handle_navigate_book(payload)
         except json.JSONDecodeError:
             print(f"Error decoding JSON: {text_data}")
         except Exception as e:
@@ -1198,7 +1200,14 @@ class GameConsumer(AsyncWebsocketConsumer):
                 
             except Exception as e:
                 logger.error(f"Room {self.room_name}: Error processing AI assist drawing: {e}")
-                await self.send_error(f"AI 處理過程出錯: {str(e)}")
+                await self.send(text_data=json.dumps({
+                    'type': 'ai_drawing_result',
+                    'payload': {
+                        'success': False,
+                        'image': None
+                    }
+                }))
+                # await self.send_error(f"AI 處理過程出錯: {str(e)}")
     
         except Exception as e:
             logger.error(f"Room {self.room_name}: Unexpected error in handle_ai_assist_drawing: {e}")
