@@ -475,24 +475,10 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await self.handle_submit_drawing(payload.get('drawing'))
             elif message_type == 'submit_guess':
                 await self.handle_submit_guess(payload.get('guess'))
-            elif message_type == 'clear_canvas': # 處理清除畫布請求
+            elif message_type == 'clear_canvas':
                 await self.handle_clear_canvas()
-            elif message_type == 'user_info': # 處理用戶信息
-                # 即使移除了登入系統，我們仍然可以允許客戶端發送一個顯示名稱
-                player_display_name = payload.get('displayName', room['players'].get(self.player_id, {}).get('name'))
-                if self.player_id in room['players']:
-                    room['players'][self.player_id]['name'] = player_display_name
-                    await self.broadcast_game_state(f"玩家 {player_display_name} 已更新名稱")
-                # 保存用戶ID
-                self.user_id = payload.get('username')
-                logger.info(f"GameConsumer: 設置user_id為: {self.user_id}")
-                # 確保用戶ID加入活躍集合
-                if self.user_id and self.user_id not in active_guest_ids:
-                    await self.add_user_id(self.user_id)
-            # 可以添加其他訊息類型處理
-            elif message_type == 'navigate_book':
-                await self.handle_navigate_book(payload)
-
+            elif message_type == 'ai_assist_drawing':
+                await self.handle_ai_assist_drawing(payload)
         except json.JSONDecodeError:
             print(f"Error decoding JSON: {text_data}")
         except Exception as e:
@@ -1154,3 +1140,66 @@ class GameConsumer(AsyncWebsocketConsumer):
         """添加用戶ID到活躍集合"""
         active_guest_ids.add(user_id)
         logger.info(f"GameConsumer: 已添加用戶ID {user_id}, 當前活躍IDs: {active_guest_ids}")
+
+    async def handle_ai_assist_drawing(self, payload):
+        """處理 AI 輔助繪畫請求"""
+        try:
+            prompt_text = payload.get('prompt')
+            drawing_data_url = payload.get('drawing')
+            
+            if not prompt_text or not drawing_data_url:
+                await self.send_error("缺少必要的繪畫或描述資訊")
+                return
+            
+            if not llm_client:
+                logger.error(f"Room {self.room_name}: LLM Client not initialized, cannot process AI drawing request.")
+                await self.send_error("AI 服務未啟動，請稍後再試")
+                return
+            
+            logger.info(f"Room {self.room_name}: Processing AI assist drawing request from {self.player_id}.")
+            
+            # 將 data URL 轉換為圖像字節
+            image_bytes, mime_type = data_url_to_image_bytes(drawing_data_url)
+            if not image_bytes:
+                logger.error(f"Room {self.room_name}: Failed to convert drawing data URL to image bytes.")
+                await self.send_error("處理圖像資料失敗")
+                return
+            
+            # 呼叫 LLM 生成輔助圖像
+            try:
+                result_image_bytes = llm_client.generate_image_from_image(
+                    image_bytes, 
+                    prompt_text=prompt_text, 
+                    mime_type=mime_type
+                )
+                
+                if not result_image_bytes:
+                    logger.error(f"Room {self.room_name}: LLM returned no image bytes for AI drawing.")
+                    await self.send_error("AI 生成圖像失敗，請重試")
+                    return
+                
+                # 將結果圖像轉換回 data URL
+                result_data_url = image_bytes_to_data_url(result_image_bytes, mime_type)
+                if not result_data_url:
+                    logger.error(f"Room {self.room_name}: Failed to convert result image bytes to data URL.")
+                    await self.send_error("處理結果圖像失敗")
+                    return
+                
+                # 發送結果回前端
+                await self.send(text_data=json.dumps({
+                    'type': 'ai_drawing_result',
+                    'payload': {
+                        'success': True,
+                        'image': result_data_url
+                    }
+                }))
+                
+                logger.info(f"Room {self.room_name}: Successfully processed AI assist drawing for {self.player_id}.")
+                
+            except Exception as e:
+                logger.error(f"Room {self.room_name}: Error processing AI assist drawing: {e}")
+                await self.send_error(f"AI 處理過程出錯: {str(e)}")
+    
+        except Exception as e:
+            logger.error(f"Room {self.room_name}: Unexpected error in handle_ai_assist_drawing: {e}")
+            await self.send_error("處理 AI 輔助繪畫時發生未知錯誤")

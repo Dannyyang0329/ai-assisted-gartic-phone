@@ -1114,7 +1114,6 @@ body.room-page {
     overflow: hidden;
     position: relative;
     z-index: 1;
-    flex-shrink: 0; 
 }
 
 /* ------------- 10. 結果顯示 ------------- */
@@ -1243,8 +1242,6 @@ body.room-page {
     font-size: 1.3rem;
     text-align: center;
     font-weight: 700;
-    position: relative;
-    letter-spacing: 0.02em;
 }
 
 /* 書本標題裝飾線 */
@@ -1916,19 +1913,224 @@ body.room-page {
 .book-navigation .btn.btn-exit:hover {
     background: #ffe0e0;
     color: #c33;
-    border: 1.5px solid #ffb0b0;
-    transform: translateY(-2px);
+    border: 1.5px solid #f9b3b3;
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 2px 8px rgba(233, 76, 76, 0.15);
 }
 
-/* 修復一般按鈕樣式 - 不變的部分 */
-.book-navigation .btn {
+/* ------------- 14. AI 輔助繪畫 Modal ------------- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-container {
+    background-color: white;
+    width: 90%;
+    max-width: 550px;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.modal-overlay.active .modal-container {
+    transform: translateY(0);
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--secondary) 0%, rgba(44, 204, 228, 0.8) 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.modal-header h3 {
     margin: 0;
-    border-radius: 10px;
-    padding: 0.55rem 1.3rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    transition: background 0.2s, color 0.2s, border 0.2s, transform 0.16s, box-shadow 0.2s;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 5px;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-close-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.modal-description {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #555;
+}
+
+.modal-body .form-group {
+    margin-bottom: 1.5rem;
+}
+
+#ai-assist-prompt {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid rgba(44, 204, 228, 0.3);
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #f9feff;
+    resize: vertical;
+    min-height: 100px;
+}
+
+#ai-assist-prompt:focus {
+    border-color: rgba(44, 204, 228, 0.7);
+    background-color: white;
+    box-shadow: 0 0 0 4px rgba(44, 204, 228, 0.15);
+    outline: none;
+}
+
+.modal-options {
+    margin-top: 1rem;
+}
+
+.style-option-group {
+    margin-bottom: 1rem;
+}
+
+.style-option-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 500;
+}
+
+.style-options {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.style-option {
+    background-color: #f0f7ff;
+    border: 1px solid #d0e1fb;
+    color: #3b6cb7;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.style-option:hover {
+    background-color: #e1eeff;
+    border-color: #a8c6f0;
+}
+
+.style-option.active {
+    background-color: rgba(44, 204, 228, 0.15);
+    border-color: rgba(44, 204, 228, 0.4);
+    color: var(--secondary);
+    font-weight: 500;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+#ai-assist-submit-btn {
+    background: linear-gradient(135deg, var(--secondary) 0%, rgba(44, 204, 228, 0.8) 100%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(44, 204, 228, 0.3);
+    min-width: 140px;
+}
+
+#ai-assist-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(44, 204, 228, 0.4);
+}
+
+#ai-assist-submit-btn .btn-icon {
+    margin-right: 0.5rem;
+}
+
+/* 添加淡入淡出動畫 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 隱藏類 */
+.hidden {
+    display: none !important;
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+    .modal-container {
+        width: 95%;
+        max-height: 80vh;
+    }
+    
+    .modal-header {
+        padding: 0.8rem 1rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-footer {
+        padding: 0.8rem 1rem;
+    }
 }

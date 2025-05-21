@@ -244,6 +244,9 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'error':
                 showStatusMessage(`錯誤: ${payload.message}`, 'error');
                 break;
+            case 'ai_drawing_result':
+                handleAiDrawingResult(payload);
+                break;
             default:
                 console.warn("Unhandled message type:", messageType);
         }
@@ -915,6 +918,92 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // 新增 AI 輔助按鈕與 modal 元素引用
+    const aiAssistButton = document.getElementById('ai-assist-button');
+    const aiAssistModal = document.getElementById('ai-assist-modal');
+    const aiAssistModalClose = document.getElementById('ai-assist-modal-close');
+    const aiAssistCancelBtn = document.getElementById('ai-assist-cancel-btn');
+    const aiAssistSubmitBtn = document.getElementById('ai-assist-submit-btn');
+    const aiAssistPrompt = document.getElementById('ai-assist-prompt');
+    
+    // 顯示 AI 輔助 Modal
+    function showAiAssistModal() {
+        if (aiAssistModal) {
+            aiAssistModal.classList.remove('hidden');
+            setTimeout(() => {
+                aiAssistModal.classList.add('active');
+                if (aiAssistPrompt) {
+                    aiAssistPrompt.focus();
+                }
+            }, 10);
+            document.body.style.overflow = 'hidden'; // 防止背景滾动
+        }
+    }
+
+    // 隱藏 AI 輔助 Modal
+    function hideAiAssistModal() {
+        if (aiAssistModal) {
+            aiAssistModal.classList.remove('active');
+            setTimeout(() => {
+                aiAssistModal.classList.add('hidden');
+                document.body.style.overflow = ''; // 恢復背景滾动
+            }, 300); // 等待動畫完成
+        }
+    }
+
+    // 綁定 AI 輔助按鈕點擊事件
+    if (aiAssistButton) {
+        aiAssistButton.onclick = function() {
+            showAiAssistModal();
+        };
+    }
+
+    // 關閉 Modal 的點擊事件
+    if (aiAssistModalClose) {
+        aiAssistModalClose.onclick = hideAiAssistModal;
+    }
+
+    // 取消按鈕點擊事件
+    if (aiAssistCancelBtn) {
+        aiAssistCancelBtn.onclick = hideAiAssistModal;
+    }
+
+    // Modal 背景點擊關閉
+    if (aiAssistModal) {
+        aiAssistModal.addEventListener('click', function(e) {
+            if (e.target === aiAssistModal) {
+                hideAiAssistModal();
+            }
+        });
+    }
+
+    // AI 輔助繪畫生成處理
+    if (aiAssistSubmitBtn) {
+        aiAssistSubmitBtn.onclick = function() {
+            const promptText = aiAssistPrompt.value.trim();
+            if (!promptText) {
+                showStatusMessage('請輸入描述內容', 'error');
+                return;
+            }
+
+            // 顯示處理中狀態
+            aiAssistSubmitBtn.disabled = true;
+            aiAssistSubmitBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">處理中...</span>';
+
+            // 取得當前畫布內容
+            const drawingDataUrl = drawingCanvasEl.toDataURL('image/png');
+            
+            // 向後端發送 AI 輔助繪畫請求
+            sendMessage('ai_assist_drawing', { 
+                prompt: promptText,
+                drawing: drawingDataUrl
+            });
+
+            // 顯示處理中訊息
+            showStatusMessage('AI 正在處理您的繪畫...', 'info');
+        };
+    }
+
     submitDrawingButton.onclick = function() {
         const drawingDataUrl = drawingCanvasEl.toDataURL(); // 預設為 image/png
         sendMessage('submit_drawing', { drawing: drawingDataUrl });
@@ -1179,3 +1268,64 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial status message will be set by gameSocket.onopen or first game_state_update
     // showStatusMessage('正在連接伺服器...', 'connecting'); 
 });
+
+// 將 hideAiAssistModal 和相關變數定義為全局函數
+let aiAssistModal;
+let aiAssistSubmitBtn;
+let aiAssistPrompt;
+
+// 隱藏 AI 輔助 Modal 的全局函數
+function hideAiAssistModal() {
+    if (aiAssistModal) {
+        aiAssistModal.classList.remove('active');
+        setTimeout(() => {
+            aiAssistModal.classList.add('hidden');
+            document.body.style.overflow = ''; // 恢復背景滾動
+        }, 300); // 等待動畫完成
+    }
+}
+
+// 添加處理 AI 繪畫結果的函數
+function handleAiDrawingResult(payload) {
+    console.log("收到 AI 繪畫結果:", payload);
+    
+    // 隱藏 AI 輔助對話框
+    hideAiAssistModal();
+    
+    // 重置按鈕狀態
+    if (aiAssistSubmitBtn) {
+        aiAssistSubmitBtn.disabled = false;
+        aiAssistSubmitBtn.innerHTML = '<span class="btn-icon">✨</span><span class="btn-text">生成繪畫</span>';
+    }
+    
+    // 重置輸入內容
+    if (aiAssistPrompt) {
+        aiAssistPrompt.value = '';
+    }
+    
+    if (payload.success) {
+        // 將結果圖像應用到畫布
+        const img = new Image();
+        img.onload = function() {
+            // 清除當前畫布內容
+            context.clearRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+            context.fillStyle = canvasBackgroundColor;
+            context.fillRect(0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+            
+            // 繪製新圖像
+            context.drawImage(img, 0, 0, drawingCanvasEl.width, drawingCanvasEl.height);
+            
+            // 保存到撤銷堆疊
+            saveCanvasState();
+            
+            showStatusMessage('AI 輔助繪畫已套用！', 'success');
+        };
+        img.onerror = function() {
+            console.error("AI 繪畫圖像載入失敗");
+            showStatusMessage('圖像載入失敗，請重試', 'error');
+        };
+        img.src = payload.image;
+    } else {
+        showStatusMessage(payload.error || 'AI 輔助繪畫處理失敗，請重試', 'error');
+    }
+}
