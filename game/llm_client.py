@@ -8,7 +8,7 @@ import google.genai as genai
 
 from PIL import Image
 from dotenv import load_dotenv
-from googletrans import Translator
+# from googletrans import Translator
 
 load_dotenv()
 logger = logging.getLogger(__name__)
