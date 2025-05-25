@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/WebSocket-支援-lightgrey.svg" alt="WebSocket">
 </div>
 
-ArtFlow 是一款創新的線上多人 AI 輔助繪畫接龍遊戲，結合了人類創意與 AI 技術的完美融合。玩家們可以透過網路即時協作，輪流進行題目創作、繪畫、猜測等環節，創造出充滿驚喜和趣味的故事集。無論您是繪畫高手還是初學者，AI 都能協助您完成精彩的作品！
+ArtFlow 是一款仿 gartic phone 的線上多人 AI 輔助繪畫接龍遊戲，結合了人類創意與 AI 技術的完美融合。玩家們可以透過網路即時協作，輪流進行題目創作、繪畫、猜測等環節，創造出充滿驚喜和趣味的故事集。無論您是繪畫高手還是初學者，AI 都能協助您完成精彩的作品！
 
 ## ✨ 主要特色
 
@@ -49,7 +49,6 @@ ArtFlow 是一款創新的線上多人 AI 輔助繪畫接龍遊戲，結合了�
 - **即時通訊**：Django Channels (WebSocket)
 - **AI 整合**：Google Gemini API
 - **資料庫**：SQLite（可擴展至 PostgreSQL/MySQL）
-- **翻譯服務**：Google 翻譯 API
 
 ### 前端技術棧
 - **核心技術**：HTML5, CSS3, JavaScript (ES6+)
@@ -72,11 +71,36 @@ ArtFlow 是一款創新的線上多人 AI 輔助繪畫接龍遊戲，結合了�
 
 ### 1. 複製專案
 ```bash
-git clone <repository_url>
-cd ArtFlow
+git clone git@github.com:Dannyyang0329/ai-assisted-gartic-phone.git
+cd ai-assisted-gartic-phone
 ```
 
-### 2. 建立虛擬環境
+### 2. 環境變數設定
+在專案根目錄建立 `.env` 檔案：
+
+```env
+# Google Gemini API 金鑰（支援多組金鑰輪替，至少需提供一組）
+API_KEY1=your_gemini_api_key_1
+API_KEY2=your_gemini_api_key_2
+API_KEY3=your_gemini_api_key_3
+API_KEY4=your_gemini_api_key_4
+API_KEY5=your_gemini_api_key_5
+
+BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+```
+格式可參考 ```.env.example``` 檔案；請確保檔名有為 ```.env```。
+
+### 3. 啟動 Docker 環境
+```bash
+docker compose up --build
+```
+
+成功啟動後，請在瀏覽器開啟：`http://127.0.0.1:8000/`
+
+### (Optional) 手動安裝
+若不使用 docker，請執行下列步驟：
+
+#### 1. 建立虛擬環境
 ```bash
 # 建立虛擬環境
 python -m venv venv
@@ -88,7 +112,7 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-### 3. 安裝依賴套件
+#### 2. 安裝依賴套件
 ```bash
 pip install -r requirements.txt
 ```
@@ -97,33 +121,13 @@ pip install -r requirements.txt
 ```
 Django>=4.2.0
 django-channels>=4.0.0
-google-generativeai>=0.3.0
+google-genai>=0.3.0
 Pillow>=10.0.0
 python-dotenv>=1.0.0
+whitenoise
 ```
 
-### 4. 環境變數設定
-在專案根目錄建立 `.env` 檔案：
-
-```env
-# Google Gemini API 金鑰（支援多組金鑰輪替）
-API_KEY0=your_gemini_api_key_1
-API_KEY1=your_gemini_api_key_2
-API_KEY2=your_gemini_api_key_3
-API_KEY3=your_gemini_api_key_4
-API_KEY4=your_gemini_api_key_5
-
-# Django 密鑰
-SECRET_KEY=your_django_secret_key
-
-# 除錯模式（生產環境請設為 False）
-DEBUG=True
-
-# 允許的主機
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
-
-### 5. 資料庫初始化
+#### 3. 資料庫初始化
 ```bash
 # 建立資料庫遷移檔案
 python manage.py makemigrations
@@ -135,12 +139,11 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 6. 啟動開發伺服器
+#### 4. 啟動開發伺服器
 ```bash
 python manage.py runserver
 ```
 
-成功啟動後，請在瀏覽器開啟：`http://127.0.0.1:8000/`
 
 ## 🎮 遊戲玩法指南
 
@@ -202,7 +205,7 @@ python manage.py runserver
 - **🗑️ 清除畫布**：一鍵清空重新開始
 
 ### AI 輔助繪畫
-- 每位玩家有限次數的 AI 輔助（通常 2-3 次）
+- 每位玩家有限次數的 AI 輔助（通常 2-3 次，看玩家人數）
 - 輸入詳細描述，AI 會生成對應圖像
 - 可在 AI 生成的基礎上繼續手動編輯
 
@@ -280,9 +283,9 @@ LLMClient 支援多組 API 金鑰輪替使用，提高系統穩定性：
 
 ```python
 # 在 .env 檔案中設定
-API_KEY0=key1
-API_KEY1=key2
-API_KEY2=key3
+API_KEY1=key1
+API_KEY2=key2
+API_KEY3=key3
 ```
 
 ## 🐛 故障排除
@@ -382,7 +385,7 @@ gunicorn ArtFlow.asgi:application -k uvicorn.workers.UvicornWorker
 
 ## 📝 更新日誌
 
-### v1.0.0 (2024-12)
+### v1.0.0 (2025-05)
 - ✨ 初始版本發布
 - 🎮 完整的多人遊戲系統
 - 🤖 AI 輔助繪畫功能
@@ -403,7 +406,7 @@ gunicorn ArtFlow.asgi:application -k uvicorn.workers.UvicornWorker
 
 ## 👥 開發團隊
 
-- **專案維護者**：[您的名字]
+- **專案維護者**：Dannyyang0329, yuunnn420, r13922051, christmaskid
 - **AI 整合**：Google Gemini API
 - **前端設計**：現代化響應式設計
 - **後端架構**：Django + Channels
