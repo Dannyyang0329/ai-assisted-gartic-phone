@@ -79,12 +79,7 @@ cd ai-assisted-gartic-phone
 在專案根目錄建立 `.env` 檔案：
 
 ```env
-# Google Gemini API 金鑰（支援多組金鑰輪替，至少需提供一組）
-API_KEY1=your_gemini_api_key_1
-API_KEY2=your_gemini_api_key_2
-API_KEY3=your_gemini_api_key_3
-API_KEY4=your_gemini_api_key_4
-API_KEY5=your_gemini_api_key_5
+API_KEY1=your_gemini_api_key
 
 BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 ```
@@ -276,16 +271,6 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-```
-
-### AI 模型設定
-LLMClient 支援多組 API 金鑰輪替使用，提高系統穩定性：
-
-```python
-# 在 .env 檔案中設定
-API_KEY1=key1
-API_KEY2=key2
-API_KEY3=key3
 ```
 
 ## 🐛 故障排除
