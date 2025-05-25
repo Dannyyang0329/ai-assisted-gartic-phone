@@ -1539,45 +1539,48 @@ body.room-page {
     border-color: #adb5bd;
 }
 
+#ai-assist-button:disabled {
+    background-color: #e9ecef; /* 淡灰色背景 */
+    color: #adb5bd; /* 柔和的文字顏色 */
+    border-color: #dee2e6; /* 更淺的邊框顏色 */
+    opacity: 0.7; /* 降低透明度以表示禁用 */
+    cursor: not-allowed; /* 更改游標樣式 */
+    box-shadow: none; /* 移除陰影 */
+    transform: none; /* 移除可能的變換效果 */
+}
+
+.ai-assists-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ai-assists-counter .ai-assists-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--secondary);
+    background-color: rgba(44, 204, 228, 0.1);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(44, 204, 228, 0.2);
+    box-shadow: 0 1px 3px rgba(44, 204, 228, 0.05);
+    transition: all 0.2s ease;
+}
+
+#remaining-ai-assists {
+    background: linear-gradient(135deg, var(--secondary) 0%, rgba(44, 204, 228, 0.8) 100%);
+    color: white;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    display: inline-block;
+    min-width: 24px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(44, 204, 228, 0.2);
+}
+
 .btn-block {
     width: 100%;
-}
-
-#prompt-input-area #submit-prompt-button {
-    min-width: 220px;
-    padding: 1.2rem 2rem;
-    margin-top: 1.5rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    box-shadow: 0 8px 20px rgba(93, 95, 239, 0.3);
-    transition: all 0.4s ease;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-}
-
-#prompt-input-area #submit-prompt-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
-    transform: skewX(-25deg);
-    transition: all 0.6s ease;
-    z-index: -1;
-}
-
-#prompt-input-area #submit-prompt-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 25px rgba(93, 95, 239, 0.4);
-}
-
-#prompt-input-area #submit-prompt-button:hover::before {
-    left: 100%;
 }
 
 /* ------------- 12. 動畫效果 ------------- */
@@ -1907,7 +1910,7 @@ body.room-page {
     color: #d44;
     border: 1.5px solid #ffc8c8;
     box-shadow: 0 1px 4px rgba(233, 76, 76, 0.08);
-    margin-left: 0.5rem; /* 增加與翻頁按鈕的分隔 */
+    margin-left:  0.5rem; /* 增加與翻頁按鈕的分隔 */
 }
 
 .book-navigation .btn.btn-exit:hover {

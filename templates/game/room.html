@@ -250,16 +250,21 @@
                 <p class="modal-description">請描述你想要 AI 幫助繪製的內容：</p>
                 <div class="form-group">
                     <textarea id="ai-assist-prompt" class="form-input" rows="4" 
-                        placeholder="例如：一隻站在草地上的橘貓，背景是藍天白雲"></textarea>
+                        placeholder="例如：一隻站在草地上的橘貓，背景是藍天白雲" maxlength="5"></textarea>
                 </div>
                 <!-- 移除 modal-options 區塊 -->
             </div>
             <div class="modal-footer">
-                <button id="ai-assist-cancel-btn" class="btn btn-secondary">取消</button>
-                <button id="ai-assist-submit-btn" class="btn btn-primary">
-                    <span class="btn-icon">✨</span>
-                    <span class="btn-text">生成繪畫</span>
-                </button>
+                <div class="ai-assists-counter">
+                    <span class="ai-assists-label">剩餘次數：</span><span id="remaining-ai-assists">0</span>
+                </div>
+                <div class="modal-footer-buttons">
+                    <button id="ai-assist-cancel-btn" class="btn btn-secondary">取消</button>
+                    <button id="ai-assist-submit-btn" class="btn btn-primary">
+                        <span class="btn-icon">✨</span>
+                        <span class="btn-text">生成繪畫</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

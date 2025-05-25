@@ -141,6 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
         startY: 0,
         currentPreview: null // Stores ImageData for quick preview restore
     };
+    // 新增：跟踪AI輔助次數
+    let remainingAiAssists = 0;
 
     // Undo/Redo stacks
     let undoStack = [];
@@ -304,6 +306,42 @@ document.addEventListener('DOMContentLoaded', function() {
             // promptInputArea.classList.add('hidden'); // This is handled by hideAllSections in showX functions
         }
         // Other inputs (drawing, guess) are managed by their respective showXXX functions
+
+        // 更新AI輔助次數和按鈕狀態
+        if (stateData.ai_assist_usage && myPlayerId) {
+            const myUsage = stateData.ai_assist_usage[myPlayerId] || 0;
+            const maxAllowed = stateData.max_ai_assists_allowed || 0;
+            remainingAiAssists = Math.max(0, maxAllowed - myUsage);
+            
+            // 更新UI上的剩餘次數顯示
+            const remainingAiAssistsEl = document.getElementById('remaining-ai-assists');
+            if (remainingAiAssistsEl) {
+                remainingAiAssistsEl.textContent = remainingAiAssists;
+            }
+            
+            // 更新AI輔助按鈕狀態
+            updateAiAssistButtonState();
+        }
+    }
+
+    // 新增：更新AI輔助按鈕狀態的函數
+    function updateAiAssistButtonState() {
+        if (aiAssistButton) {
+            if (remainingAiAssists <= 0) {
+                aiAssistButton.disabled = true;
+                aiAssistButton.title = "已達AI輔助次數上限";
+                aiAssistButton.classList.add('disabled');
+            } else {
+                aiAssistButton.disabled = false;
+                aiAssistButton.title = "AI輔助繪畫";
+                aiAssistButton.classList.remove('disabled');
+            }
+        }
+        
+        // 同時更新modal中的提交按鈕
+        if (aiAssistSubmitBtn) {
+            aiAssistSubmitBtn.disabled = (remainingAiAssists <= 0);
+        }
     }
 
     function getGameStateText(state) {
@@ -954,7 +992,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 綁定 AI 輔助按鈕點擊事件
     if (aiAssistButton) {
         aiAssistButton.onclick = function() {
-            showAiAssistModal();
+            if (remainingAiAssists > 0) {
+                showAiAssistModal();
+            } else {
+                showStatusMessage('已達AI輔助次數上限', 'error');
+            }
         };
     }
 
@@ -1282,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 添加處理 AI 繪畫結果的函數
     function handleAiDrawingResult(payload) {
         if (payload.success) {
-            const context = drawingCanvasEl.getContext('2d'); // 新增：獲取 context
+            const context = drawingCanvasEl.getContext('2d');
 
             // 將結果圖像應用到畫布
             const img = new Image();
@@ -1306,10 +1348,22 @@ document.addEventListener('DOMContentLoaded', function() {
             showStatusMessage(payload.error || 'AI 輔助繪畫處理失敗，請重試', 'error');
         }
 
+        // 更新剩餘次數
+        if (typeof payload.remaining_ai_assists === 'number') {
+            remainingAiAssists = payload.remaining_ai_assists;
+            const remainingAiAssistsEl = document.getElementById('remaining-ai-assists');
+            if (remainingAiAssistsEl) {
+                remainingAiAssistsEl.textContent = remainingAiAssists;
+            }
+            
+            // 更新按鈕狀態
+            updateAiAssistButtonState();
+        }
+
         // 無論成功或失敗，都關閉 modal 並重設按鈕
         hideAiAssistModal();
         if (aiAssistSubmitBtn) {
-            aiAssistSubmitBtn.disabled = false;
+            aiAssistSubmitBtn.disabled = remainingAiAssists <= 0;
             aiAssistSubmitBtn.innerHTML = '<span class="btn-icon">✨</span><span class="btn-text">生成繪畫</span>';
             aiAssistPrompt.value = ''; // 清空輸入框
         }
