@@ -1,4 +1,4 @@
-# ArtFlow - AI 繪畫接龍遊戲 🎨
+# Team06 Web Final Project - AI 繪畫接龍遊戲 🎨
 
 <div align="center">
   <img src="https://img.shields.io/badge/Django-4.2+-brightgreen.svg" alt="Django">
