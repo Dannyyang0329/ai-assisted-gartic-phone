@@ -44,7 +44,7 @@ def data_url_to_image_bytes(data_url):
 class LLMClient:
     def __init__(self):
         # Load environment variables from .env file
-        self.current_api_key_index = 2
+        self.current_api_key_index = 0
         self.api_key_list = self._init_api_key()
         if not self.api_key_list or len(self.api_key_list) == 0:
             raise ValueError("API_KEY_X environment variable not set.")

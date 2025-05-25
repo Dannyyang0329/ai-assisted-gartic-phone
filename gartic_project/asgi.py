@@ -11,14 +11,15 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import game.routing # 確保導入了 game.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gartic_project.settings')
 
-# django_asgi_app = get_asgi_application() # 如果在下面使用，先獲取
+django_asgi_app = get_asgi_application()
+
+import game.routing # 確保導入了 game.routing
 
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(), # 直接調用
+    "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
         URLRouter(
             game.routing.websocket_urlpatterns # 使用 game.routing 中的路由
