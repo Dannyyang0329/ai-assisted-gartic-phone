@@ -5,4 +5,3 @@ google-genai
 pillow
 python-dotenv
 whitenoise
-googletrans
