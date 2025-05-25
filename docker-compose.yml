@@ -1,0 +1,12 @@
+services:
+  gartic:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=gartic_project.settings
+    volumes:
+      - .:/app
+    restart: unless-stopped
