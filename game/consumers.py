@@ -282,9 +282,18 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
         hash_key = hashlib.md5(self.room_name.encode('utf-8')).hexdigest()
         game_room_key = f'game_{hash_key}'
         
-        # 獲取當前等待室中的所有玩家ID (包括機器人)
-        # turn_order 將在 GameConsumer 中確定，這裡只傳遞所有參與者
-        all_player_ids_in_order = list(room['players'].keys()) # 保持加入順序或由 GameConsumer 處理順序
+        all_player_ids_in_order = list(room['players'].keys())
+
+        # Calculate max AI assists allowed per human player
+        # (玩家數量/2)-1, ensuring it's not negative, and using floor for integer division
+        max_ai_assists_allowed = max(0, math.floor(len(all_player_ids_in_order) / 2) - 1)
+        
+        # Initialize AI assist usage tracking for human players
+        ai_assist_usage = {
+            player_id: 0 
+            for player_id, p_data in room['players'].items() 
+            if not p_data.get('isBot', False)
+        }
 
         # 創建遊戲房間實例
         game_rooms[game_room_key] = {
@@ -299,7 +308,9 @@ class WaitingRoomConsumer(AsyncWebsocketConsumer):
             'total_display_rounds': math.ceil((len(all_player_ids_in_order) - 1) / 2.0) if len(all_player_ids_in_order) > 1 else 0,
             'books': {player_id: [] for player_id in all_player_ids_in_order},
             'assignments': {},
-            'game_log': []
+            'game_log': [],
+            'max_ai_assists_allowed': max_ai_assists_allowed, # 新增：最大AI輔助次數
+            'ai_assist_usage': ai_assist_usage             # 新增：AI輔助使用記錄
         }
         print(f"Game room {game_room_key} created with players: {all_player_ids_in_order}")
         print(f"Total ops: {game_rooms[game_room_key]['total_ops']}, Total display rounds: {game_rooms[game_room_key]['total_display_rounds']}")
@@ -968,7 +979,9 @@ class GameConsumer(AsyncWebsocketConsumer):
             'total_display_rounds': room.get('total_display_rounds', 0),
             'status_message': status_message,
             'waiting_on': list(room.get('assignments', {}).keys()),
-            'turn_order': room.get('turn_order', [])
+            'turn_order': room.get('turn_order', []),
+            'max_ai_assists_allowed': room.get('max_ai_assists_allowed', 0), # 新增
+            'ai_assist_usage': room.get('ai_assist_usage', {})             # 新增
         }
 
     async def broadcast_game_state(self, status_message=""):
@@ -1145,70 +1158,118 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     async def handle_ai_assist_drawing(self, payload):
         """處理 AI 輔助繪畫請求"""
+        room = game_rooms.get(self.room_group_name)
+        # 初始化 is_bot 以確保在所有路徑中都已定義
+        is_bot = False 
+        # 初始化 response_remaining_assists 的預設值
+        # 如果房間或玩家資料不存在，預設剩餘次數為0
+        response_remaining_assists = 0
+        max_allowed_assists = 0
+
+
+        if not room:
+            logger.error(f"Room {self.room_name} not found for AI assist.")
+            await self.send(text_data=json.dumps({
+                'type': 'ai_drawing_result', 'payload': {'success': False, 'error': "遊戲房間不存在。", 'remaining_ai_assists': 0}
+            }))
+            return
+
+        player_data = room['players'].get(self.player_id)
+        if not player_data:
+            await self.send(text_data=json.dumps({
+                'type': 'ai_drawing_result', 'payload': {'success': False, 'error': "找不到玩家資料。", 'remaining_ai_assists': 0}
+            }))
+            return
+
+        is_bot = player_data.get('isBot', False)
+        max_allowed_assists = room.get('max_ai_assists_allowed', 0)
+        
+        current_player_usage = 0
+        if not is_bot:
+            current_player_usage = room.get('ai_assist_usage', {}).get(self.player_id, 0)
+        
+        response_remaining_assists = max_allowed_assists - current_player_usage
+        if is_bot: # 機器人不受限，可以顯示為最大允許次數
+            response_remaining_assists = max_allowed_assists
+
         try:
             prompt_text = payload.get('prompt')
             drawing_data_url = payload.get('drawing')
             
             if not prompt_text or not drawing_data_url:
-                await self.send_error("缺少必要的繪畫或描述資訊")
+                await self.send(text_data=json.dumps({
+                    'type': 'ai_drawing_result', 
+                    'payload': {'success': False, 'error': "缺少必要的繪畫或描述資訊", 'remaining_ai_assists': response_remaining_assists}
+                }))
                 return
             
             if not llm_client:
-                logger.error(f"Room {self.room_name}: LLM Client not initialized, cannot process AI drawing request.")
-                await self.send_error("AI 服務未啟動，請稍後再試")
+                logger.error(f"Room {self.room_name}: LLM Client not initialized.")
+                await self.send(text_data=json.dumps({
+                    'type': 'ai_drawing_result', 
+                    'payload': {'success': False, 'error': "AI 服務未啟動", 'remaining_ai_assists': response_remaining_assists}
+                }))
                 return
+
+            if not is_bot:
+                if current_player_usage >= max_allowed_assists:
+                    logger.info(f"Room {self.room_name}: Player {self.player_id} has no AI assists remaining (used {current_player_usage}/{max_allowed_assists}).")
+                    await self.send(text_data=json.dumps({
+                        'type': 'ai_drawing_result',
+                        'payload': {'success': False, 'error': '已達 AI 輔助次數上限', 'remaining_ai_assists': max(0, response_remaining_assists)}
+                    }))
+                    return
             
-            logger.info(f"Room {self.room_name}: Processing AI assist drawing request from {self.player_id}.")
+            logger.info(f"Room {self.room_name}: Processing AI assist for {self.player_id}. Human assists before this use: {response_remaining_assists if not is_bot else 'N/A (Bot)'}")
             
-            # 將 data URL 轉換為圖像字節
             image_bytes, mime_type = data_url_to_image_bytes(drawing_data_url)
             if not image_bytes:
                 logger.error(f"Room {self.room_name}: Failed to convert drawing data URL to image bytes.")
-                await self.send_error("處理圖像資料失敗")
+                await self.send(text_data=json.dumps({
+                    'type': 'ai_drawing_result', 
+                    'payload': {'success': False, 'error': "處理圖像資料失敗", 'remaining_ai_assists': response_remaining_assists}
+                }))
                 return
             
-            # 呼叫 LLM 生成輔助圖像
-            try:
-                result_image_bytes = llm_client.generate_image_from_image(
-                    image_bytes, 
-                    prompt_text=prompt_text, 
-                    mime_type=mime_type
-                )
-                
-                if not result_image_bytes:
-                    logger.error(f"Room {self.room_name}: LLM returned no image bytes for AI drawing.")
-                    await self.send_error("AI 生成圖像失敗，請重試")
-                    return
-                
-                # 將結果圖像轉換回 data URL
-                result_data_url = image_bytes_to_data_url(result_image_bytes, mime_type)
-                if not result_data_url:
-                    logger.error(f"Room {self.room_name}: Failed to convert result image bytes to data URL.")
-                    await self.send_error("處理結果圖像失敗")
-                    return
-                
-                # 發送結果回前端
+            if not is_bot:
+                current_player_usage += 1
+                room['ai_assist_usage'][self.player_id] = current_player_usage
+                response_remaining_assists = max_allowed_assists - current_player_usage
+            
+            result_image_bytes = llm_client.generate_image_from_image(
+                image_bytes, 
+                prompt_text=prompt_text, 
+                mime_type=mime_type
+            )
+            
+            if not result_image_bytes:
+                logger.error(f"Room {self.room_name}: LLM returned no image bytes for AI drawing.")
                 await self.send(text_data=json.dumps({
                     'type': 'ai_drawing_result',
-                    'payload': {
-                        'success': True,
-                        'image': result_data_url
-                    }
+                    'payload': {'success': False, 'error': 'AI 生成圖像失敗，請重試', 'remaining_ai_assists': response_remaining_assists}
                 }))
-                
-                logger.info(f"Room {self.room_name}: Successfully processed AI assist drawing for {self.player_id}.")
-                
-            except Exception as e:
-                logger.error(f"Room {self.room_name}: Error processing AI assist drawing: {e}")
+                return
+            
+            result_data_url = image_bytes_to_data_url(result_image_bytes, mime_type)
+            if not result_data_url:
+                logger.error(f"Room {self.room_name}: Failed to convert result image bytes to data URL.")
                 await self.send(text_data=json.dumps({
                     'type': 'ai_drawing_result',
-                    'payload': {
-                        'success': False,
-                        'image': None
-                    }
+                    'payload': {'success': False, 'error': '處理結果圖像失敗', 'remaining_ai_assists': response_remaining_assists}
                 }))
-                # await self.send_error(f"AI 處理過程出錯: {str(e)}")
-    
+                return
+            
+            await self.send(text_data=json.dumps({
+                'type': 'ai_drawing_result',
+                'payload': {'success': True, 'image': result_data_url, 'remaining_ai_assists': response_remaining_assists}
+            }))
+            logger.info(f"Room {self.room_name}: Successfully processed AI assist for {self.player_id}. Human assists remaining: {response_remaining_assists if not is_bot else 'N/A (Bot)'}")
+            
         except Exception as e:
-            logger.error(f"Room {self.room_name}: Unexpected error in handle_ai_assist_drawing: {e}")
-            await self.send_error("處理 AI 輔助繪畫時發生未知錯誤")
+            logger.error(f"Room {self.room_name}: Error processing AI assist drawing for {self.player_id}: {e}", exc_info=True)
+            # 在發生未知錯誤時，response_remaining_assists 會是基於嘗試使用前的狀態（如果錯誤發生在計數增加前）
+            # 或嘗試使用後的狀態（如果錯誤發生在計數增加後）。目前邏輯是在LLM調用前增加計數。
+            await self.send(text_data=json.dumps({
+                'type': 'ai_drawing_result',
+                'payload': {'success': False, 'error': "AI 處理過程出錯", 'remaining_ai_assists': response_remaining_assists}
+            }))
